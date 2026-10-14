@@ -1,0 +1,85 @@
+{
+  "src/actions/rbacActions.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/actions/userActions.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/api/activityLogs.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/api/client.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/api/rbac.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 9
+    }
+  },
+  "src/api/users.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    }
+  },
+  "src/components/ThemePicker.tsx": {
+    "react-hooks/refs": {
+      "count": 1
+    }
+  },
+  "src/features/activity/components/ActivityLog.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/features/auth/authSlice.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 17
+    }
+  },
+  "src/features/auth/components/Login.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/features/profile/components/UserProfile.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/features/rbac/components/RoleConfigModal.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/layouts/AppShell.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/lib/theme.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/lib/utils.test.ts": {
+    "no-constant-binary-expression": {
+      "count": 1
+    }
+  },
+  "vitest.config.ts": {
+    "@typescript-eslint/triple-slash-reference": {
+      "count": 1
+    }
+  }
+}

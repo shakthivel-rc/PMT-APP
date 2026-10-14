@@ -1,0 +1,13 @@
+.git
+node_modules
+dist
+coverage
+playwright-report
+test-results
+
+# Never bake real configuration into an image.
+.env
+.env.*
+!.env.example
+
+*.md

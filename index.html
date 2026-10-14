@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <!--
+      The Base Project mark: three stacked layers, the top one lit. Same geometry as
+      `src/components/BrandMark.tsx`.
+
+      DUPLICATED ON PURPOSE, because a favicon is fetched as a standalone document and
+      cannot import a component. Nothing in the build connects the two — `BrandMark.test.tsx`
+      pins the path data on that side, and this copy has to be edited by hand alongside it.
+
+      Colours are literals here and cannot be otherwise: a standalone document sees none of
+      the app's custom properties and cannot follow the theme. `#2563eb` is the default
+      (Light) theme's `--primary`; the stroke opacity reproduces the component's dimmed
+      lower layers against its lit top layer.
+    -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%232563eb'/%3E%3Cg fill='none' stroke='white' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 17l9 4.5 9-4.5M7 21.5l9 4.5 9-4.5' stroke-width='2' opacity='.5'/%3E%3Cpath d='M16 6.5l9 4.5-9 4.5-9-4.5z' stroke-width='2.4'/%3E%3C/g%3E%3C/svg%3E"
+    />
+    <title>PMT</title>
+
+    <!-- Inter (weights actually used: 400/500/600/700) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Flash-free theme: resolve and apply the persisted theme before first paint.
+         The scheme map is inlined because CSS has not parsed yet, so nothing else here
+         can know whether a given theme id is light or dark.
+         Keep in sync with src/features/ui/themes.ts (themes.test.ts asserts it). -->
+    <script>
+      (function () {
+        var SCHEME = {"light":"light","dark":"dark","midnight":"dark","nord":"dark","dracula":"dark","catppuccin-mocha":"dark","gruvbox-dark":"dark","catppuccin-latte":"light","solarized-light":"light","high-contrast-light":"light","emerald":"light","sunset":"light","lavender":"light","rose-pine":"dark","tokyo-night":"dark","synthwave":"dark","monokai":"dark","high-contrast-dark":"dark","prism-light":"light","prism-dark":"dark"};
+        var d = document.documentElement;
+        var id;
+        try {
+          var pref = localStorage.getItem('nx-theme');
+          if (pref === null) {
+            // Migrate the two-theme key so existing users keep what they had.
+            var legacy = localStorage.getItem('theme');
+            pref = legacy === 'light' || legacy === 'dark' ? legacy : 'system';
+            localStorage.setItem('nx-theme', pref);
+          }
+          if (pref === 'system' || !SCHEME[pref]) {
+            var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            id = dark
+              ? localStorage.getItem('nx-theme-night') || 'dark'
+              : localStorage.getItem('nx-theme-day') || 'light';
+          } else {
+            id = pref;
+          }
+        } catch (e) {}
+        if (!SCHEME[id]) id = 'light';
+        d.setAttribute('data-theme', id);
+        d.classList.toggle('dark', SCHEME[id] === 'dark');
+        d.style.colorScheme = SCHEME[id];
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/index.tsx"></script>
+  </body>
+</html>

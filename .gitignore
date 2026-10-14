@@ -1,0 +1,41 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Environment — never commit real values.
+# Real env files must never be committed; the *.local rule above is too incidental to
+# rely on. Be explicit, and ship .env.example instead.
+.env
+.env.*
+!.env.example
+
+# Test output
+coverage
+# Anchored (2026-10-06): vitest and playwright write `reports/` at the repository root.
+# Unanchored, `reports` also matched `src/features/reports/` — the Reports screens' SOURCE —
+# so a new file there was silently never committed.
+/reports
+playwright-report
+test-results
+.playwright
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

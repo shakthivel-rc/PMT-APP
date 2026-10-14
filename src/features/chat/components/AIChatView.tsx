@@ -1,0 +1,717 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Sparkles,
+  Send,
+  Plus,
+  Settings2,
+  Bot,
+  User as UserIcon,
+  Loader2,
+  Building2,
+  X,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Copy,
+  Check,
+  RotateCcw,
+  Pencil,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import RichMessageRenderer, { ToolExecutionCard } from './RichMessageRenderer';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  sendChatTurn,
+  fetchConversationHistory,
+  fetchChatSettings,
+  type ChatMessageItem,
+  type ConfirmCard,
+  type Clarification,
+  type ChatSettings,
+} from '@/api/chat';
+import { fetchWorkspacesApi } from '@/api/workspaces';
+import type { WorkspaceSummary } from '@/types';
+import ConfirmCardView from './ConfirmCardView';
+import UndoCardView from './UndoCardView';
+import ClarificationCardView from './ClarificationCardView';
+import AIChatSettingsModal from './AIChatSettingsModal';
+
+interface AIChatViewProps {
+  initialWorkspaceId?: string;
+  initialConversationId?: string;
+  onConversationCreated?: (conversationId: string) => void;
+  compact?: boolean;
+  onClose?: () => void;
+  sidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
+}
+
+const EXAMPLE_PROMPTS = [
+  'List all timesheets from 01-10-2026 to 10-10-2026',
+  'What are the open high priority bugs in this workspace?',
+  'Show active sprint progress and unassigned tickets',
+  'Search knowledge docs for deployment instructions',
+];
+
+
+export const AIChatView: React.FC<AIChatViewProps> = ({
+  initialWorkspaceId,
+  initialConversationId,
+  onConversationCreated,
+  compact = false,
+  onClose,
+  sidebarOpen,
+  onToggleSidebar,
+}) => {
+  const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>(initialWorkspaceId || '');
+  const [conversationId, setConversationId] = useState<string | undefined>(initialConversationId);
+  const [messages, setMessages] = useState<ChatMessageItem[]>([]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<ChatSettings | null>(null);
+
+  const [activeConfirmCard, setActiveConfirmCard] = useState<ConfirmCard | null>(null);
+  const [activeClarification, setActiveClarification] = useState<Clarification | null>(null);
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Load workspaces and chat settings
+  useEffect(() => {
+    fetchWorkspacesApi()
+      .then((data) => {
+        setWorkspaces(data);
+        if (!selectedWorkspaceId && data.length > 0) {
+          setSelectedWorkspaceId(data[0].id);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load workspaces:', err);
+      });
+
+    fetchChatSettings()
+      .then((data) => setSettings(data))
+      .catch(() => {});
+  }, []);
+
+  // Update selected workspace if prop changes
+  useEffect(() => {
+    if (initialWorkspaceId) {
+      setSelectedWorkspaceId(initialWorkspaceId);
+    }
+  }, [initialWorkspaceId]);
+
+  // Update conversation id if prop changes
+  useEffect(() => {
+    setConversationId(initialConversationId);
+    if (!initialConversationId) {
+      setMessages([]);
+      setActiveConfirmCard(null);
+      setActiveClarification(null);
+    }
+  }, [initialConversationId]);
+
+  // Load conversation history if id is provided
+  useEffect(() => {
+    if (!selectedWorkspaceId || !conversationId) return;
+    fetchConversationHistory(selectedWorkspaceId, conversationId)
+      .then((history) => {
+        setMessages(history.messages || []);
+      })
+      .catch((err) => {
+        console.error('Failed to load conversation history:', err);
+      });
+  }, [selectedWorkspaceId, conversationId]);
+
+  // Auto-scroll on new message
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
+  }, [messages, loading, activeConfirmCard, activeClarification]);
+
+  const handleStartNewChat = () => {
+    setConversationId(undefined);
+    setMessages([]);
+    setActiveConfirmCard(null);
+    setActiveClarification(null);
+    setInputMessage('');
+    textareaRef.current?.focus();
+  };
+
+  const handleSend = async (customMessage?: string) => {
+    const textToSend = customMessage !== undefined ? customMessage : inputMessage;
+    if (!textToSend.trim() || loading || !selectedWorkspaceId) return;
+
+    const userMsg: ChatMessageItem = {
+      role: 'user',
+      content: textToSend.trim(),
+      created_at: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
+    if (customMessage === undefined) {
+      setInputMessage('');
+    }
+    setLoading(true);
+
+    try {
+      const result = await sendChatTurn(selectedWorkspaceId, {
+        message: textToSend.trim(),
+        conversation_id: conversationId,
+      });
+
+      if (result.conversation_id && result.conversation_id !== conversationId) {
+        setConversationId(result.conversation_id);
+        onConversationCreated?.(result.conversation_id);
+      }
+
+      const assistantMsg: ChatMessageItem = {
+        role: 'assistant',
+        content: result.reply,
+        tool_calls: result.tool_calls_executed,
+        confirm_card: result.confirm_card,
+        undo_action: result.undo_action,
+        clarification: result.clarification,
+        created_at: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, assistantMsg]);
+
+      if (result.confirm_card) {
+        setActiveConfirmCard(result.confirm_card);
+      }
+      if (result.clarification) {
+        setActiveClarification(result.clarification);
+      }
+      if (result.error && !result.reply) {
+        toast.error(result.error);
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Chat turn execution failed';
+      toast.error(msg);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `⚠️ Error: ${msg}`,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmAction = async (confirmId: string, typedText?: string) => {
+    if (!selectedWorkspaceId || loading) return;
+    setLoading(true);
+    try {
+      const result = await sendChatTurn(selectedWorkspaceId, {
+        conversation_id: conversationId,
+        confirm_action_id: confirmId,
+        confirm_typed_text: typedText || undefined,
+      });
+
+      setActiveConfirmCard(null);
+      const assistantMsg: ChatMessageItem = {
+        role: 'assistant',
+        content: result.reply || 'Action confirmed and executed.',
+        undo_action: result.undo_action,
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
+      toast.success('Action confirmed successfully');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Confirmation failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelAction = async (confirmId: string) => {
+    if (!selectedWorkspaceId || loading) return;
+    setLoading(true);
+    try {
+      const result = await sendChatTurn(selectedWorkspaceId, {
+        conversation_id: conversationId,
+        cancel_action_id: confirmId,
+      });
+
+      setActiveConfirmCard(null);
+      const assistantMsg: ChatMessageItem = {
+        role: 'assistant',
+        content: result.reply || 'Action cancelled.',
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
+      toast.info('Action cancelled');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Cancellation failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUndoAction = async (undoId: string) => {
+    if (!selectedWorkspaceId || loading) return;
+    setLoading(true);
+    try {
+      const result = await sendChatTurn(selectedWorkspaceId, {
+        conversation_id: conversationId,
+        undo_action_id: undoId,
+      });
+
+      const assistantMsg: ChatMessageItem = {
+        role: 'assistant',
+        content: result.reply || 'Action reverted successfully.',
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
+      toast.success('Action reverted successfully');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Undo failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClarificationOption = (option: string) => {
+    setActiveClarification(null);
+    handleSend(option);
+  };
+
+  const [copiedMessageIdx, setCopiedMessageIdx] = useState<number | null>(null);
+
+  const handleCopyMessage = (text: string, idx: number) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedMessageIdx(idx);
+    toast.success('Message copied to clipboard');
+    setTimeout(() => {
+      setCopiedMessageIdx((prev) => (prev === idx ? null : prev));
+    }, 2000);
+  };
+
+  const handleReusePrompt = (text: string) => {
+    setInputMessage(text);
+    textareaRef.current?.focus();
+    toast.info('Prompt loaded into composer');
+  };
+
+  const handleRetryLastTurn = () => {
+    if (loading) return;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user' && messages[i].content) {
+        handleSend(messages[i].content);
+        return;
+      }
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const currentWorkspace = workspaces.find((w) => w.id === selectedWorkspaceId);
+
+  return (
+    <div className="flex flex-col h-full bg-background border-border overflow-hidden">
+      {/* Header Bar */}
+      <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-card/75 px-4 backdrop-blur-md">
+        <div className="flex items-center gap-2.5 min-w-0">
+          {/* Sidebar Toggle in page view */}
+          {onToggleSidebar && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onToggleSidebar}
+              className="size-8 rounded-lg text-muted-foreground hover:text-foreground shrink-0"
+              title={sidebarOpen ? 'Hide conversations' : 'Show conversations'}
+            >
+              {sidebarOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
+            </Button>
+          )}
+
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Sparkles className="size-4" />
+          </div>
+
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold truncate leading-tight text-foreground">
+                PMT AI Assistant
+              </h2>
+              <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 uppercase text-primary border-primary/30">
+                Gateway
+              </Badge>
+            </div>
+            <p className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">
+              Workspace automation & pair programming
+            </p>
+          </div>
+        </div>
+
+        {/* Right Header Toolbar */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Current Workspace badge if selected, or selector if in standalone mode */}
+          {initialWorkspaceId && currentWorkspace ? (
+            <Badge variant="secondary" className="hidden sm:flex items-center gap-1.5 text-xs font-normal py-1 px-2.5 bg-muted/60">
+              <Building2 className="size-3 text-muted-foreground" />
+              <span className="max-w-[120px] truncate">{currentWorkspace.name}</span>
+            </Badge>
+          ) : (
+            workspaces.length > 1 && (
+              <Select value={selectedWorkspaceId} onValueChange={setSelectedWorkspaceId}>
+                <SelectTrigger className="h-8 text-xs w-[130px] sm:w-[150px] px-2 font-medium">
+                  <Building2 className="size-3 text-muted-foreground mr-1 shrink-0" />
+                  <SelectValue placeholder="Workspace" />
+                </SelectTrigger>
+                <SelectContent>
+                  {workspaces.map((ws) => (
+                    <SelectItem key={ws.id} value={ws.id} className="text-xs">
+                      {ws.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )
+          )}
+
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleStartNewChat}
+            title="Start new conversation"
+            className="h-8 px-2.5 text-xs gap-1 text-muted-foreground hover:text-foreground"
+          >
+            <Plus className="size-3.5" />
+            <span className="hidden sm:inline">New</span>
+          </Button>
+
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setSettingsOpen(true)}
+            title="Configure AI model & credentials"
+            className="size-8 p-0 text-muted-foreground hover:text-foreground rounded-lg"
+          >
+            <Settings2 className="size-4" />
+          </Button>
+
+          {/* Close drawer button */}
+          {onClose && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onClose}
+              title="Close assistant"
+              className="size-8 p-0 text-muted-foreground hover:text-foreground rounded-lg"
+            >
+              <X className="size-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* API Key Missing Notice */}
+      {settings && !settings.has_api_key && (
+        <div className="flex items-center justify-between gap-3 bg-primary/10 border-b border-primary/20 px-4 py-2 text-xs text-foreground">
+          <div className="flex items-center gap-2 min-w-0">
+            <Sparkles className="size-3.5 text-primary shrink-0" />
+            <span className="truncate">
+              AI model credentials are not configured yet. Configure your API key to enable full AI assistance.
+            </span>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setSettingsOpen(true)}
+            className="h-6 px-2 text-[11px] gap-1 shrink-0 border-primary/30 text-primary hover:bg-primary/10"
+          >
+            <Settings2 className="size-3" />
+            Configure
+          </Button>
+        </div>
+      )}
+
+      {/* Messages Stream */}
+      <div
+        ref={scrollContainerRef}
+        className={`flex-1 overflow-y-auto ${compact ? 'p-3 space-y-3' : 'p-4 sm:p-5 space-y-4'} min-h-0 bg-background/50`}
+      >
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full text-center max-w-md mx-auto py-8 px-4 text-muted-foreground">
+            <div className="size-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3 shadow-sm">
+              <Sparkles className="size-6 animate-pulse" />
+            </div>
+            <h3 className="text-sm font-semibold text-foreground mb-1">
+              How can I help with your project today?
+            </h3>
+            <p className="text-xs text-muted-foreground mb-6 max-w-xs leading-relaxed">
+              Ask me to inspect issues, check sprints, log timesheets, search knowledge, or manage workspace workflows.
+            </p>
+
+            <div className="grid grid-cols-1 gap-2.5 w-full text-left">
+              {EXAMPLE_PROMPTS.map((prompt, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleSend(prompt)}
+                  className="rounded-xl border border-border/80 bg-card p-3 text-xs text-foreground/90 hover:bg-accent hover:border-primary/40 transition-all text-left shadow-2xs group flex items-center justify-between"
+                >
+                  <span className="truncate font-medium">{prompt}</span>
+                  <span className="text-muted-foreground group-hover:text-primary transition-colors pl-2">
+                    →
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {messages
+          .filter((msg) => msg.role !== 'tool' && (msg.content || msg.confirm_card || msg.undo_action || msg.clarification || (msg.tool_calls && msg.tool_calls.length > 0)))
+          .map((msg, idx) => {
+          const isUser = msg.role === 'user';
+          const isLatestAssistant = !isUser && idx === messages.length - 1;
+          const timeStr = msg.created_at
+            ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : '';
+
+          return (
+            <div
+              key={idx}
+              className={`group flex flex-col gap-1 text-sm ${isUser ? 'items-end' : 'items-start'}`}
+            >
+              <div className={`flex gap-2.5 items-start max-w-full ${isUser ? 'justify-end' : 'justify-start'}`}>
+                {/* Assistant avatar */}
+                {!isUser && (
+                  <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                    <Bot className="size-4" />
+                  </div>
+                )}
+
+                {/* Left hover actions for user messages */}
+                {isUser && (
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150 self-center">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer"
+                      title="Copy prompt"
+                      onClick={() => handleCopyMessage(msg.content || '', idx)}
+                    >
+                      {copiedMessageIdx === idx ? (
+                        <Check className="size-3.5 text-emerald-500" />
+                      ) : (
+                        <Copy className="size-3.5" />
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer"
+                      title="Edit / reuse prompt in composer"
+                      onClick={() => handleReusePrompt(msg.content || '')}
+                    >
+                      <Pencil className="size-3.5" />
+                    </Button>
+                  </div>
+                )}
+
+                {/* Message Bubble */}
+                <div
+                  className={`max-w-[85%] md:max-w-[78%] rounded-2xl px-4 py-3 shadow-2xs ${
+                    isUser
+                      ? 'bg-primary text-primary-foreground rounded-tr-xs'
+                      : 'bg-card border border-border/80 text-foreground rounded-tl-xs'
+                  }`}
+                >
+                  {/* Tool execution cards */}
+                  {!isUser && msg.tool_calls && msg.tool_calls.length > 0 && (
+                    <div className="mb-2 space-y-1.5">
+                      {msg.tool_calls.map((tc, tIdx) => {
+                        const toolName = typeof tc === 'string' ? tc : tc.name || tc.tool || 'tool';
+                        const args = typeof tc === 'object' && tc ? (tc.arguments || tc.args) : undefined;
+                        return (
+                          <ToolExecutionCard
+                            key={tIdx}
+                            toolName={toolName}
+                            args={args}
+                          />
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Message text */}
+                  {msg.content && (
+                    isUser ? (
+                      <div className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</div>
+                    ) : (
+                      <RichMessageRenderer
+                        text={msg.content}
+                        onSendMessage={(t) => handleSend(t)}
+                        onStagePrompt={(t) => handleReusePrompt(t)}
+                        isLatestAssistant={isLatestAssistant}
+                      />
+                    )
+                  )}
+
+                  {/* Confirmation Card */}
+                  {msg.confirm_card && (
+                    <ConfirmCardView
+                      card={msg.confirm_card}
+                      onConfirm={handleConfirmAction}
+                      onCancel={handleCancelAction}
+                      disabled={loading}
+                    />
+                  )}
+
+                  {/* Undo Card */}
+                  {msg.undo_action && (
+                    <UndoCardView
+                      action={msg.undo_action}
+                      onUndo={handleUndoAction}
+                      disabled={loading}
+                    />
+                  )}
+
+                  {/* Clarification Card */}
+                  {msg.clarification && (
+                    <ClarificationCardView
+                      clarification={msg.clarification}
+                      onSelectOption={handleClarificationOption}
+                      disabled={loading}
+                    />
+                  )}
+                </div>
+
+                {/* Right hover actions for assistant messages */}
+                {!isUser && (
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150 self-center">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer"
+                      title="Copy response"
+                      onClick={() => handleCopyMessage(msg.content || '', idx)}
+                    >
+                      {copiedMessageIdx === idx ? (
+                        <Check className="size-3.5 text-emerald-500" />
+                      ) : (
+                        <Copy className="size-3.5" />
+                      )}
+                    </Button>
+                    {isLatestAssistant && !loading && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer"
+                        title="Retry / Regenerate response"
+                        onClick={handleRetryLastTurn}
+                      >
+                        <RotateCcw className="size-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {/* User avatar */}
+                {isUser && (
+                  <div className="size-8 rounded-lg bg-secondary text-secondary-foreground flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                    <UserIcon className="size-4" />
+                  </div>
+                )}
+              </div>
+
+              {/* Timestamp */}
+              {timeStr && (
+                <span
+                  className={`text-[10px] text-muted-foreground/60 ${isUser ? 'pr-10' : 'pl-10'}`}
+                >
+                  {timeStr}
+                </span>
+              )}
+            </div>
+          );
+        })}
+
+        {loading && (
+          <div className="flex gap-3 items-center text-xs text-muted-foreground pl-1">
+            <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 animate-pulse">
+              <Bot className="size-4" />
+            </div>
+            <div className="flex items-center gap-2.5 bg-card border border-border/70 rounded-xl px-3.5 py-2.5 shadow-2xs">
+              <Loader2 className="size-3.5 animate-spin text-primary" />
+              <span>Thinking & exploring workspace tools...</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Input Composer */}
+      <div className="border-t border-border bg-card p-3 sm:p-4 shrink-0">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSend();
+          }}
+          className="flex items-end gap-2.5"
+        >
+          <div className="relative flex-1">
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={
+                selectedWorkspaceId
+                  ? 'Ask PMT Assistant anything... (Enter to send, Shift+Enter for newline)'
+                  : 'Select a workspace first...'
+              }
+              disabled={loading || !selectedWorkspaceId}
+              className="w-full resize-none rounded-xl border border-input bg-background px-3.5 py-3 text-xs sm:text-sm text-foreground shadow-2xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[44px] max-h-[140px] leading-snug"
+            />
+          </div>
+
+          <Button
+            type="submit"
+            size="icon"
+            disabled={!inputMessage.trim() || loading || !selectedWorkspaceId}
+            className="size-11 rounded-xl shrink-0 shadow-xs"
+            title="Send message"
+          >
+            {loading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+          </Button>
+        </form>
+      </div>
+
+      <AIChatSettingsModal
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        onSettingsUpdated={(newSettings) => setSettings(newSettings)}
+      />
+    </div>
+  );
+};
+
+export default AIChatView;

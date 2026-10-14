@@ -1,7 +1,6 @@
-# Base Project App
+# PMT App (Project Management Tool)
 
-React 19 single-page app for **Base Project** — authentication, user management, roles &
-permissions, activity log and profile; a reusable base for admin products.
+React 19 single-page app for **PMT (Project Management Tool)** — a full-featured project management platform providing Workspaces, Spaces, Folders, Lists, Epics, Stories, Tasks, Bugs, Subtasks, interactive Kanban and List boards with custom workflows, Sprints with metrics dashboard and lifecycle tracking, Time tracking with live stopwatch and timesheets, analytical Reports (15 report types, CSV/XLSX/PDF exports, schedules), Releases, File Storage/Attachments, GitHub integration, AI Assistant Chat with persistent conversations and model credential management, Common and space settings, alongside user management, RBAC, and audit logs.
 
 Consumes the FastAPI backend in the [`pmt-api`](https://github.com/your-org/pmt-api) repository.
 
@@ -11,16 +10,25 @@ Consumes the FastAPI backend in the [`pmt-api`](https://github.com/your-org/pmt-
 
 | Route | Screen | What it does |
 |---|---|---|
-| `/` | User Management | User statistics overview and user management |
-| `/projects` | Projects | The caller's workspaces; create one (name + slug). Admins and owners edit one; owners delete one (soft: it disappears for every member, its history is kept) after typing its name |
-| `/projects/:workspaceId` `/projects/:workspaceId/lists/:listId` | Workspace | Spaces › folders › lists, and the chosen list as a Board or a List (`?view=list`) with an issue drawer: comments, linked PRs and an AI thread summary. Its Members dialog adds members, changes roles and removes members (admins and owners), and lets anyone leave |
-| `/rbac` | Roles & Permissions | Create permissions, assign them to roles |
-| `/activity` | Activity Log | Paginated audit trail |
-| `/profile` | Profile | Account details, password change, theme |
-| `/login` `/register` `/verify-otp` `/set-password` `/forgot-password` | Auth | Public flows under a separate layout |
-| `/reset-password?token=` `/verify-account?token=` | Emailed links | Choose a new password; accept an admin's invite. The API builds these links (`utils/token.py:app_link`), so the paths are a contract with it. The token goes back in the POST body, never a URL. Open whether or not someone is signed in |
+| `/` | User Management / Dashboard | User statistics overview, platform administration, and user management |
+| `/projects` | Projects & Workspaces | The caller's workspaces; create one (name + slug). Admins and owners edit one; owners delete one (soft: it disappears for every member, its history is kept) after typing its name |
+| `/projects/:workspaceId` `/projects/:workspaceId/lists/:listId` | Workspace Board & List | Spaces › folders › lists, and the chosen list as a Board or a List (`?view=list`) with an issue drawer: comments, linked PRs, story points, and AI thread summaries. Its Members dialog adds members, changes roles, and removes members |
+| `/projects/:workspaceId/spaces/:spaceId/:spaceTab` | Space Views | Tabbed space experience: Board, List, Settings, Workflow Editor, and Releases |
+| `/projects/:workspaceId/browse/:issueKey` | Issue Browser | Direct URL routing and drawer view for a specific issue by key (e.g. `PAY-12`) |
+| `/projects/:workspaceId/settings` | Project & Common Settings | General space settings, Git repository linking, workflow transitions, and common cross-project configurations (`/projects/common-settings`) |
+| `/projects/:workspaceId/restructure` | Restructure | Space restructuring engine for container migrations and hierarchy re-parenting |
+| `/timesheet` | Timesheet | Weekly timesheet grid by person or team; log and edit hours against issues; active stopwatch timer integration |
+| `/reports` `/reports/:type` `/reports/saved/:id` `/reports/jobs/:id` | Reports Suite | 15 analytical reports across Time, Sprint, Project, and Flow categories (burndown, burnup, velocity, cumulative flow, cycle time, workload); CSV, XLSX, and PDF exports; saved reports and scheduled email digests |
+| `/chat` | AI Chat Assistant | Dedicated chat page and global centered modal drawer (`AIChatDrawer`) for natural language task orchestration, model selection, API credentials management, and history |
+| `/rbac` | Roles & Permissions | Create permissions, assign them to roles, and manage coarse/fine permission implications |
+| `/activity` | Activity Log | Paginated audit trail of member and administrative actions |
+| `/profile` | Profile | Account details, password change, and multi-theme switcher |
+| `/login` `/register` `/verify-otp` `/set-password` `/forgot-password` | Auth | Public authentication flows under a separate layout |
+| `/reset-password?token=` `/verify-account?token=` | Emailed links | Choose a new password; accept an admin's invite. The API builds these links (`utils/token.py:app_link`), so the paths are a contract with it. The token goes back in the POST body, never a URL |
 
 Protected screens render inside `AppShell`; public auth screens render inside `AuthLayout`.
+
+> **Sprints UI**: Accessed directly from the project board toolbar. Opens as a centered, standard XXL modal dialog (`sm:max-w-2xl h-[85vh]`) featuring real-time story point progress bars, KPI metric cards, state filter tabs (All, Active, Planned, Closed), backlog issue candidate selector, and sprint activity timeline.
 
 ## Stack
 
@@ -46,7 +54,7 @@ path to take if you just want to see the thing run.
 
 ```bash
 npm install
-npm run dev          # http://localhost:3000
+npm run dev          # http://localhost:5173
 ```
 
 The dev server proxies `/api/*` to the backend — see the proxy note below, it has a sharp edge.
@@ -88,12 +96,11 @@ Copy `.env.example` to `.env.local` and fill it in. Only `VITE_API_BASE_URL` is 
 
 ```
 src/
-  api/          fetch wrapper + per-domain modules (client, users, rbac, activityLogs, workspaces, issues)
-  app/          store.ts (4 reducers), typed hooks
-  components/   shared components + ui/ (15 shadcn primitives)
+  api/          fetch wrapper + per-domain modules (client, users, rbac, activityLogs, workspaces, issues, reports, sprints, chat)
+  app/          store.ts (4 reducers: auth, users, ui, timer), typed hooks
+  components/   shared components + ui/ (shadcn primitives)
   config/       nav.tsx — single source for nav items and header titles
-  features/     auth (screens + AuthLayout, the public shell), users, ui, rbac, activity, profile, projects,
-                time (timer slice, timesheet)
+  features/     auth, users, ui, rbac, activity, profile, projects, time, reports, chat, sprints, workflow, planning, restructure
   layouts/      AppShell (the authenticated shell)
   lib/          cn(), passwordRules, pagination, datetime, theme, lazyWithRetry, useBusy,
                 duration, week, useNow
@@ -101,11 +108,11 @@ src/
   index.css     the design system: tokens, @theme bridge, base layer
 ```
 
-**State.** Exactly four registered reducers: `auth`, `users`, `ui` and `timer` (added
-2026-10-05: the header and the issue drawer must agree on the one running timer, which component
-state cannot do). The `rbac`, `activity`, `profile` and `projects` folders are feature folders
-with **no slice** — they hold component state, and so does the rest of `time`. Always use the typed `useAppSelector` / `useAppDispatch` hooks; async flows go through
-`createAsyncThunk`.
+**State.** Four registered reducers in Redux: `auth`, `users`, `ui` and `timer` (the header
+and the issue drawer must agree on the one running timer, which component state cannot do).
+Feature modules `rbac`, `activity`, `profile`, `projects`, `reports`, `workflow`, `sprints`,
+and `chat` manage domain-specific state via clean React hooks and component state. Always use
+the typed `useAppSelector` / `useAppDispatch` hooks; async flows go through `createAsyncThunk`.
 
 **HTTP.** Everything goes through the `api` object in `src/api/client.ts`, which attaches the
 `Authorization` header and implements 401 → refresh → retry → in-app logout. Never call

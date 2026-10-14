@@ -1,0 +1,17 @@
+# Line endings. See the longer explanation in pmt-api/.gitattributes.
+#
+# The one here that bites is nginx.conf: it is COPYied into the runtime image, and nginx
+# rejects a directive whose line ends in \r with `unknown directive "listen 80;"` — a
+# message that quotes a line which is, as far as anyone reading it can tell, correct.
+* text=auto eol=lf
+
+*.sh          text eol=lf
+Dockerfile    text eol=lf
+nginx.conf    text eol=lf
+*.mjs         text eol=lf
+
+*.png binary
+*.jpg binary
+*.svg text
+*.ico binary
+*.pdf binary
