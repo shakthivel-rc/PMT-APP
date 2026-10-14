@@ -20,7 +20,10 @@ import {
   TrendingDown,
   X,
   Zap,
+  Sparkles,
 } from 'lucide-react';
+import { PlanningPokerPanel } from './PlanningPokerPanel';
+import { SprintRetroPanel } from './SprintRetroPanel';
 import { toast } from 'sonner';
 import { fetchReportCatalogApi } from '@/api/reports';
 import {
@@ -468,6 +471,37 @@ function SprintActivity({ sprint }: { sprint: SprintSummary }) {
   );
 }
 
+function SprintPoker({
+  workspaceId,
+  sprint,
+  candidates,
+  canManage,
+  onChanged,
+}: {
+  workspaceId: string;
+  sprint: SprintSummary;
+  candidates: IssueCard[];
+  canManage: boolean;
+  onChanged: () => void;
+}) {
+  const [version, setVersion] = useState(0);
+  const issues = useKeyed(`${sprint.id}|poker|${version}`, () => fetchSprintIssuesApi(workspaceId, sprint.id));
+  const sprintIssuesList = (issues?.data && issues.data.length > 0) ? issues.data : candidates;
+
+  return (
+    <PlanningPokerPanel
+      workspaceId={workspaceId}
+      sprintId={sprint.id}
+      sprintIssues={sprintIssuesList}
+      canManage={canManage}
+      onStoryPointsAssigned={() => {
+        setVersion((v) => v + 1);
+        onChanged();
+      }}
+    />
+  );
+}
+
 /**
  * Enhanced SprintPanel Component:
  * Provides informative metrics, visual progress, tabbed issue/activity view, and quick duration presets.
@@ -484,7 +518,7 @@ export function SprintPanel({
   const canManage = catalog?.data?.can_manage_sprints ?? false;
 
   const [open, setOpen] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<Record<string, 'issues' | 'activity'>>({});
+  const [activeTab, setActiveTab] = useState<Record<string, 'issues' | 'poker' | 'retro' | 'activity'>>({});
   const [filterState, setFilterState] = useState<'all' | 'active' | 'planned' | 'closed'>('all');
 
   // Create state
@@ -1086,6 +1120,38 @@ export function SprintPanel({
                     <button
                       type="button"
                       onClick={() =>
+                        setActiveTab((prev) => ({ ...prev, [sprint.id]: 'poker' }))
+                      }
+                      className={cn(
+                        'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
+                        currentSubTab === 'poker'
+                          ? 'bg-muted text-foreground font-semibold'
+                          : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                      )}
+                    >
+                      <Sparkles className="size-3.5 text-violet-500" />
+                      <span>Planning Poker</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setActiveTab((prev) => ({ ...prev, [sprint.id]: 'retro' }))
+                      }
+                      className={cn(
+                        'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
+                        currentSubTab === 'retro'
+                          ? 'bg-muted text-foreground font-semibold'
+                          : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                      )}
+                    >
+                      <Sparkles className="size-3.5 text-amber-500" />
+                      <span>Retrospective</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
                         setActiveTab((prev) => ({ ...prev, [sprint.id]: 'activity' }))
                       }
                       className={cn(
@@ -1110,6 +1176,23 @@ export function SprintPanel({
                         reload();
                         onIssuesChanged?.();
                       }}
+                    />
+                  ) : currentSubTab === 'poker' ? (
+                    <SprintPoker
+                      workspaceId={workspaceId}
+                      sprint={sprint}
+                      candidates={candidates}
+                      canManage={canManage}
+                      onChanged={() => {
+                        reload();
+                        onIssuesChanged?.();
+                      }}
+                    />
+                  ) : currentSubTab === 'retro' ? (
+                    <SprintRetroPanel
+                      workspaceId={workspaceId}
+                      sprint={sprint}
+                      canManage={canManage}
                     />
                   ) : (
                     <SprintActivity sprint={sprint} />

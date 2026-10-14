@@ -578,5 +578,44 @@ describe('<SpaceSettings>', () => {
         expect(onChanged).toHaveBeenCalled();
       });
     });
+
+    it('navigates to Budget & Cost Tracking and updates space budget', async () => {
+      let patchPayload: unknown = null;
+      server.use(
+        http.patch('*/workspaces/w1/spaces/sp1', async ({ request }) => {
+          patchPayload = await request.json();
+          return ok({ ...mockSpace, budget_amount: 50000, budget_alert_threshold: 80 });
+        }),
+      );
+
+      const onChanged = vi.fn().mockResolvedValue(undefined);
+      const user = userEvent.setup();
+      renderWithProviders(
+        <SpaceSettings
+          workspaceId="w1"
+          space={{ ...mockSpace, budget_amount: 30000, budget_alert_threshold: 80, budget_spent: 15000 }}
+          role="admin"
+          onChanged={onChanged}
+        />,
+      );
+
+      const budgetTab = screen.getByRole('button', { name: /budget & cost tracking/i });
+      await user.click(budgetTab);
+
+      expect(await screen.findByText('Budget Spent')).toBeInTheDocument();
+      expect(screen.getByText(/On Track \(50%\)/i)).toBeInTheDocument();
+
+      const amountInput = screen.getByLabelText(/budget amount/i);
+      await user.clear(amountInput);
+      await user.type(amountInput, '50000');
+
+      const saveBtn = screen.getByRole('button', { name: /save budget settings/i });
+      await user.click(saveBtn);
+
+      await waitFor(() => {
+        expect(patchPayload).toEqual({ budget_amount: 50000, budget_alert_threshold: 80 });
+        expect(onChanged).toHaveBeenCalled();
+      });
+    });
   });
 });

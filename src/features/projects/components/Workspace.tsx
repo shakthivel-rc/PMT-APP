@@ -19,6 +19,7 @@ import SpaceView from './SpaceView';
 // Admins only, and rarely: its own chunk (09-restructuring.md §8).
 const RestructureScreen = lazyWithRetry(() => import('@/features/restructure/components/RestructureScreen'), 'RestructureScreen');
 const WorkspaceSettings = lazyWithRetry(() => import('./WorkspaceSettings'), 'WorkspaceSettings');
+const InitiativesView = lazyWithRetry(() => import('@/features/initiatives/components/InitiativesView'), 'InitiativesView');
 
 /** The list a route names, and the space whose workflow its board draws — or null. */
 function locateList(tree: WorkspaceTree, listId: string | undefined): { space: SpaceNode; list: ListNode } | null {
@@ -42,7 +43,7 @@ function locateList(tree: WorkspaceTree, listId: string | undefined): { space: S
  */
 interface WorkspaceProps {
   /** A route that is not a list, a space or a key. */
-  section?: 'restructure' | 'settings';
+  section?: 'restructure' | 'settings' | 'initiatives';
 }
 
 const Workspace = ({ section }: WorkspaceProps) => {
@@ -74,7 +75,7 @@ const Workspace = ({ section }: WorkspaceProps) => {
 
   const located = useMemo(() => (tree ? locateList(tree, listId) : null), [tree, listId]);
   const space = useMemo(() => tree?.spaces.find((s) => s.id === spaceId) ?? null, [tree, spaceId]);
-  const hasSelectedView = Boolean(located || (spaceId && space) || issueKey || section === 'restructure' || section === 'settings');
+  const hasSelectedView = Boolean(located || (spaceId && space) || issueKey || section === 'restructure' || section === 'settings' || section === 'initiatives');
   const isTreeHidden = hasSelectedView ? (focusMode || treeCollapsed) : false;
 
   useEffect(() => {
@@ -168,6 +169,10 @@ const Workspace = ({ section }: WorkspaceProps) => {
         {section === 'settings' ? (
           <Suspense fallback={<Skeleton aria-busy="true" className="h-72 rounded-xl" />}>
             <WorkspaceSettings workspaceId={tree.id} tree={tree} role={tree.role} onChanged={reload} />
+          </Suspense>
+        ) : section === 'initiatives' ? (
+          <Suspense fallback={<Skeleton aria-busy="true" className="h-72 rounded-xl" />}>
+            <InitiativesView workspaceId={tree.id} role={tree.role} spaces={tree.spaces} />
           </Suspense>
         ) : section === 'restructure' ? (
           canManageWorkspace(tree.role) ? (

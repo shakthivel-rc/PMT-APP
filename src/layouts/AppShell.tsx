@@ -11,10 +11,13 @@ import PageLoader from '@/components/PageLoader';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { cn } from '@/lib/utils';
+import { useCommandPalette } from '@/features/command/useCommandPalette';
 
 const AIChatDrawer = lazyWithRetry(() => import('@/features/chat/components/AIChatDrawer'), 'AIChatDrawer');
+const CommandPalette = lazyWithRetry(() => import('@/features/command/CommandPalette'), 'CommandPalette');
 
 const AppShell = () => {
+  useCommandPalette();
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const { user } = useAppSelector((state) => state.auth);
@@ -198,6 +201,10 @@ const AppShell = () => {
 
       <Suspense fallback={null}>
         <AIChatDrawer />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <CommandPalette />
       </Suspense>
     </div>
   );

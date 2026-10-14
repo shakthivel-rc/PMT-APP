@@ -26,6 +26,7 @@ const baseState = (over: Partial<UiState> = {}): UiState => ({
   focusMode: false,
   ticketViewMode: 'drawer',
   chatDrawerOpen: false,
+  commandPaletteOpen: false,
   ...over,
 });
 

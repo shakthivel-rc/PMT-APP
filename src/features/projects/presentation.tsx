@@ -98,6 +98,22 @@ export const PullRequestBadge = ({ state }: { state: string | null }) =>
     <StatusBadge tone={PR_TONE[state] ?? 'neutral'}>PR {state}</StatusBadge>
   ) : null;
 
+export const DeploymentBadge = ({ environment, status }: { environment: string; status: string }) => {
+  let tone: Tone = 'neutral';
+  if (status === 'succeeded') {
+    tone = environment.toLowerCase() === 'production' ? 'success' : 'info';
+  } else if (status === 'failed' || status === 'cancelled') {
+    tone = 'danger';
+  } else if (status === 'in_progress' || status === 'pending') {
+    tone = 'warning';
+  }
+  return (
+    <StatusBadge tone={tone}>
+      {humanize(environment)}: {humanize(status)}
+    </StatusBadge>
+  );
+};
+
 /**
  * Time logged on a card, against its estimate when there is one: `3h 20m / 5h`, red once over.
  * Nothing on a card with neither — most cards, and a badge on each would be noise. The words

@@ -20,6 +20,8 @@ import type {
   SpaceUnfreezeResult,
   SpaceUpdate,
   WorkspaceCreate,
+  WorkspaceRatesResponse,
+  WorkspaceRatesUpdate,
   WorkspaceSummary,
   WorkspaceTree,
   WorkspaceUpdate,
@@ -254,5 +256,20 @@ export async function linkRepositoryApi(
   body: RepositoryLink,
 ): Promise<RepositorySummary> {
   const res = await api.post<RepositorySummary>(workspacePath(workspaceId, 'repositories'), body);
+  return res.data;
+}
+
+/** Get workspace currency, default rate, and member rate overrides. */
+export async function fetchWorkspaceRatesApi(workspaceId: string): Promise<WorkspaceRatesResponse> {
+  const res = await api.get<WorkspaceRatesResponse>(workspacePath(workspaceId, 'settings', 'rates'));
+  return res.data;
+}
+
+/** Update workspace currency, default rate, or member rate overrides. */
+export async function updateWorkspaceRatesApi(
+  workspaceId: string,
+  body: WorkspaceRatesUpdate,
+): Promise<WorkspaceRatesResponse> {
+  const res = await api.put<WorkspaceRatesResponse>(workspacePath(workspaceId, 'settings', 'rates'), body);
   return res.data;
 }

@@ -231,6 +231,12 @@ export interface SpaceNode {
   can_edit_workflow: boolean;
   folders: FolderNode[];
   lists: ListNode[];
+  budget_amount?: number | null;
+  budget_alert_threshold?: number | null;
+  budget_spent?: number | null;
+  ai_triage_enabled?: boolean;
+  ai_standup_enabled?: boolean;
+  ai_retrospective_enabled?: boolean;
 }
 
 /**
@@ -594,6 +600,11 @@ export interface SpaceCreate {
   workflow_template?: string | null;
   /** Up to 10 list names, created in order at the space root. */
   initial_lists?: string[];
+  budget_amount?: number | null;
+  budget_alert_threshold?: number | null;
+  ai_triage_enabled?: boolean | null;
+  ai_standup_enabled?: boolean | null;
+  ai_retrospective_enabled?: boolean | null;
 }
 
 /** Only the fields present change; null clears the nullable ones. */
@@ -606,6 +617,11 @@ export interface SpaceUpdate {
   delivery_method?: DeliveryMethod | null;
   /** Replaces the whole checklist: fields left out are cleared, so a form sends what it shows. */
   charter?: Partial<SpaceCharter> | null;
+  budget_amount?: number | null;
+  budget_alert_threshold?: number | null;
+  ai_triage_enabled?: boolean | null;
+  ai_standup_enabled?: boolean | null;
+  ai_retrospective_enabled?: boolean | null;
 }
 
 export interface SpaceFreeze {
@@ -756,6 +772,8 @@ export interface TimeEntrySummary {
   note: string | null;
   /** Billable to a client. New entries take the workspace's `billable_default`. */
   billable: boolean;
+  billing_rate?: number | null;
+  cost_amount?: number | null;
   source: 'manual' | 'timer' | 'automation' | string;
   created_at: string;
   updated_at: string;
@@ -768,6 +786,8 @@ export interface TimeEntryPage {
   /** Across ALL pages. */
   total: number;
   total_seconds: number;
+  total_cost_amount?: number | null;
+  currency?: string;
 }
 
 export interface UserTime {
@@ -826,12 +846,15 @@ export interface TimeReportRow {
   issue: TimeIssueRef;
   work_date: string;
   seconds: number;
+  cost_amount?: number | null;
 }
 
 export interface TimeReport {
   date_from: string;
   date_to: string;
   total_seconds: number;
+  total_cost_amount?: number | null;
+  currency?: string;
   rows: TimeReportRow[];
   truncated: boolean;
 }
@@ -846,6 +869,7 @@ export interface TimeEntryCreate {
   user_id?: string;
   /** Omitted: the workspace's `billable_default`. */
   billable?: boolean;
+  billing_rate?: number | null;
 }
 
 export interface TimeEntryUpdate {
@@ -854,6 +878,34 @@ export interface TimeEntryUpdate {
   started_at?: string | null;
   note?: string | null;
   billable?: boolean;
+  billing_rate?: number | null;
+}
+
+// --- Workspace Billing Rates Types ---
+
+export interface MemberRateItem {
+  user_id: string;
+  email: string;
+  display_name: string;
+  role: string;
+  hourly_rate: number | null;
+}
+
+export interface WorkspaceRatesResponse {
+  currency: string;
+  default_billing_rate: number | null;
+  member_rates: MemberRateItem[];
+}
+
+export interface MemberRateUpdate {
+  user_id: string;
+  hourly_rate: number | null;
+}
+
+export interface WorkspaceRatesUpdate {
+  currency?: string | null;
+  default_billing_rate?: number | null;
+  member_rates?: MemberRateUpdate[] | null;
 }
 
 export interface TimerStart {
@@ -938,5 +990,344 @@ export interface IssueAttachment {
   is_image: boolean;
   created_at: string;
   download_url: string;
+}
+
+// ---- PQL (PMT Query Language) -----------------------------------------------
+
+export interface PQLValidateRequest {
+  query: string;
+}
+
+export interface PQLValidateResponse {
+  valid: boolean;
+  error?: string | null;
+}
+
+export interface PQLExecuteRequest {
+  query: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface PQLExecuteResponse {
+  records: IssueCard[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+// ---- Planning Poker ---------------------------------------------------------
+
+export interface PokerVoterState {
+  user_id: string;
+  name?: string | null;
+  email?: string | null;
+  avatar_url?: string | null;
+  has_voted: boolean;
+  point_vote?: number | null;
+  special_vote?: string | null;
+}
+
+export interface PokerSessionState {
+  id: string;
+  workspace_id: string;
+  sprint_id: string;
+  active_issue_id?: string | null;
+  active_issue_title?: string | null;
+  active_issue_key?: string | null;
+  status: 'voting' | 'revealed' | 'completed';
+  created_by: string;
+  voters: PokerVoterState[];
+  average?: number | null;
+  median?: number | null;
+  lowest_vote?: number | null;
+  highest_vote?: number | null;
+  total_voters: number;
+  voted_count: number;
+}
+
+export interface PokerVoteRequest {
+  point_vote?: number | null;
+  special_vote?: string | null;
+}
+
+// Phase 3: Autonomous AI Agents & Workflows
+export interface TriageResult {
+  issue_id: string;
+  potential_duplicate: boolean;
+  duplicate_issue_id: string | null;
+  duplicate_issue_key: string | null;
+  duplicate_issue_title: string | null;
+  similarity_score: number | null;
+  suggested_assignee_id: string | null;
+  suggested_assignee_name: string | null;
+  suggested_priority: string | null;
+  structured_reproduction_steps: string | null;
+  triage_notes: string;
+}
+
+export interface StandupMemberUpdate {
+  user_id: string;
+  user_name: string;
+  completed_yesterday: string[];
+  in_flight_today: string[];
+  blockers: string[];
+  hours_logged: number;
+}
+
+export interface StandupVelocityForecast {
+  active_sprint_name: string | null;
+  remaining_points: number;
+  working_days_left: number;
+  required_rate: number;
+  current_burn_rate: number;
+  carryover_risk: boolean;
+  projected_carryover_pct: number;
+  health_status: 'healthy' | 'at_risk' | 'critical';
+}
+
+export interface DailyStandup {
+  id: string;
+  workspace_id: string;
+  standup_date: string;
+  summary: string;
+  team_updates: StandupMemberUpdate[];
+  velocity_forecast: StandupVelocityForecast | null;
+  created_at: string;
+}
+
+export interface SprintRetrospective {
+  id: string;
+  workspace_id: string;
+  sprint_id: string;
+  summary: string;
+  wins: string[];
+  scope_creep: string[];
+  cycle_time_outliers: string[];
+  metrics: {
+    committed_points?: number;
+    completed_points?: number;
+    completion_rate_pct?: number;
+    total_issues_count?: number;
+    scope_creep_count?: number;
+    [key: string]: any;
+  };
+  created_at: string;
+}
+
+export interface BacklogHygieneItem {
+  issue_id: string;
+  key: string;
+  title: string;
+  days_inactive: number;
+  story_points: number | null;
+  priority: string;
+  recommendation: string;
+}
+
+export interface BacklogHygieneResponse {
+  space_id: string;
+  stale_count: number;
+  threshold_days: number;
+  items: BacklogHygieneItem[];
+}
+
+// --- Phase 4: Interactive Timeline / Gantt & Rescheduling Types ---
+
+export interface TimelineIssueItem {
+  id: string;
+  key: string;
+  title: string;
+  type: string;
+  status_id: string;
+  status_name: string;
+  status_category: string;
+  priority: string;
+  start_date: string | null;
+  due_date: string | null;
+  duration_days: number;
+  story_points: number | null;
+  assignee_id: string | null;
+  assignee_name: string | null;
+  epic_id: string | null;
+  epic_title: string | null;
+  list_id: string;
+  list_name: string;
+  is_blocked: boolean;
+  is_critical_path: boolean;
+}
+
+export interface TimelineDependencyItem {
+  id: string;
+  source_issue_id: string;
+  target_issue_id: string;
+  kind: string;
+  is_conflict: boolean;
+}
+
+export interface TimelineGroup {
+  id: string;
+  title: string;
+  issue_ids: string[];
+}
+
+export interface TimelineResponse {
+  space_id: string;
+  zoom: 'day' | 'week' | 'month' | 'quarter' | string;
+  start_date: string | null;
+  end_date: string | null;
+  items: TimelineIssueItem[];
+  dependencies: TimelineDependencyItem[];
+  critical_path_issue_ids: string[];
+  groups: TimelineGroup[];
+}
+
+export interface RescheduleRequest {
+  start_date: string;
+  due_date: string;
+  cascade?: boolean;
+  cascade_mode?: 'push_all_dependents' | 'push_conflicts_only';
+}
+
+export interface RescheduleResponse {
+  issue: TimelineIssueItem;
+  cascaded_issues: TimelineIssueItem[];
+  delta_days: number;
+}
+
+// --- Phase 4: Cross-Space Portfolio Initiatives Types ---
+
+export type InitiativeStatus = 'planned' | 'active' | 'completed' | 'cancelled';
+export type InitiativeHealth = 'on_track' | 'at_risk' | 'off_track' | 'planned';
+
+export interface InitiativeCreate {
+  key: string;
+  title: string;
+  description?: string | null;
+  status?: InitiativeStatus;
+  owner_id?: string | null;
+  target_quarter?: string | null;
+  start_date?: string | null;
+  target_date?: string | null;
+  budget_amount?: number | null;
+  space_ids?: string[];
+}
+
+export interface InitiativeUpdate {
+  title?: string;
+  description?: string | null;
+  status?: InitiativeStatus;
+  owner_id?: string | null;
+  target_quarter?: string | null;
+  start_date?: string | null;
+  target_date?: string | null;
+  budget_amount?: number | null;
+}
+
+export interface InitiativeSpaceSummary {
+  id: string;
+  key: string;
+  name: string;
+}
+
+export interface InitiativeIssueSummary {
+  id: string;
+  key: string;
+  title: string;
+  type: string;
+  status_name: string;
+  status_category: string;
+  story_points: number | null;
+  space_id: string;
+  space_name: string;
+}
+
+export interface InitiativeRollup {
+  total_issues: number;
+  completed_issues: number;
+  total_points: number;
+  completed_points: number;
+  progress_percentage: number;
+  health: InitiativeHealth;
+  actual_spent_amount: number;
+  budget_amount: number | null;
+  budget_burn_percentage: number | null;
+}
+
+export interface InitiativeResponse {
+  id: string;
+  workspace_id: string;
+  key: string;
+  title: string;
+  description: string | null;
+  status: InitiativeStatus;
+  owner_id: string | null;
+  owner_name: string | null;
+  target_quarter: string | null;
+  start_date: string | null;
+  target_date: string | null;
+  budget_amount: number | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  rollup: InitiativeRollup;
+}
+
+export interface InitiativeDetailResponse extends InitiativeResponse {
+  contributing_spaces: InitiativeSpaceSummary[];
+  linked_issues: InitiativeIssueSummary[];
+}
+
+export interface LinkSpacesRequest {
+  space_ids: string[];
+}
+
+export interface LinkIssuesRequest {
+  issue_ids: string[];
+}
+
+// --- Phase 4: Deployments & Issue Markers Types ---
+
+export type DeploymentEnvironment = 'development' | 'staging' | 'production' | 'canary';
+export type DeploymentStatus = 'in_progress' | 'success' | 'failed' | 'rolled_back';
+
+export interface DeploymentCreate {
+  environment: DeploymentEnvironment;
+  status: DeploymentStatus;
+  commit_sha: string;
+  ref_name?: string | null;
+  deployer_name?: string | null;
+  deployment_url?: string | null;
+  repository_id?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  issue_keys?: string[];
+  commit_messages?: string[];
+}
+
+export interface DeploymentResponse {
+  id: string;
+  workspace_id: string;
+  repository_id: string | null;
+  environment: DeploymentEnvironment;
+  status: DeploymentStatus;
+  commit_sha: string;
+  ref_name: string | null;
+  deployer_name: string | null;
+  deployment_url: string | null;
+  started_at: string;
+  finished_at: string | null;
+  created_at: string;
+  shipped_issue_count: number;
+}
+
+export interface IssueDeploymentSummary {
+  deployment_id: string;
+  environment: DeploymentEnvironment;
+  status: DeploymentStatus;
+  commit_sha: string;
+  ref_name: string | null;
+  deployment_url: string | null;
+  deployed_at: string;
 }
 

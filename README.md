@@ -44,8 +44,9 @@ HTTP client dependency.
 The backend repo owns the one-command setup and clones this one for you:
 
 ```bash
-git clone https://github.com/shakthivel-rc/PMT-API.git && cd pmt-api && make setup
+git clone https://github.com/shakthivel-rc/PMT-API.git pmt-api && cd pmt-api && make setup
 ```
+*(Or if cloned as `PMT-API`: `cd PMT-API && make setup`)*
 
 That brings up MySQL, the API and this SPA behind nginx on <http://localhost:8080>. It is the
 path to take if you just want to see the thing run.

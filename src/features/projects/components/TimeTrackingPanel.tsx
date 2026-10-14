@@ -561,7 +561,11 @@ const TimeTrackingPanel = ({ workspaceId, issue, canWrite, onIssueChange }: Time
                     </p>
                     <div className="flex shrink-0 items-center gap-1">
                       {entry.source === 'timer' && <StatusBadge tone="info">Timer</StatusBadge>}
-                      {entry.billable === false && <StatusBadge tone="neutral">Non-billable</StatusBadge>}
+                      {entry.billable === false ? (
+                        <StatusBadge tone="neutral">Non-billable</StatusBadge>
+                      ) : entry.cost_amount != null ? (
+                        <StatusBadge tone="success">${entry.cost_amount.toFixed(2)}</StatusBadge>
+                      ) : null}
                       <span className="text-sm font-semibold tabular-nums">{formatDuration(entry.duration_seconds)}</span>
                       {entry.can_edit && settings.enabled && (
                         <Button

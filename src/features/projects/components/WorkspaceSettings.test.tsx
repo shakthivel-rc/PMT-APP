@@ -235,4 +235,45 @@ describe('<WorkspaceSettings>', () => {
     expect(await screen.findByText(/You have read-only access/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /save governance/i })).toBeNull();
   });
+
+  it('navigates to Finance & Billing Rates and renders defaults and members', async () => {
+    server.use(
+      http.get('*/workspaces/w1/settings/rates', () =>
+        ok({
+          currency: 'USD',
+          default_billing_rate: 120.0,
+          member_rates: [
+            {
+              user_id: 'u1',
+              email: 'admin@acme.com',
+              display_name: 'Ada Lovelace',
+              role: 'owner',
+              hourly_rate: 150.0,
+            },
+            {
+              user_id: 'u2',
+              email: 'dev@acme.com',
+              display_name: 'Alan Turing',
+              role: 'member',
+              hourly_rate: null,
+            },
+          ],
+        }),
+      ),
+    );
+
+    const user = userEvent.setup();
+    renderWithProviders(
+      <WorkspaceSettings workspaceId="w1" tree={tree} role="owner" onChanged={onChanged} />,
+    );
+
+    await screen.findByRole('heading', { name: 'Project Governance & Defaults' });
+
+    const financeTab = screen.getByRole('button', { name: /finance & billing rates/i });
+    await user.click(financeTab);
+
+    expect(await screen.findByRole('heading', { name: 'Finance & Billing Rates' })).toBeInTheDocument();
+    expect(screen.getByDisplayValue('120')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('150')).toBeInTheDocument();
+  });
 });

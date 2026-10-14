@@ -60,6 +60,7 @@ export interface UiState {
   focusMode: boolean;
   ticketViewMode: TicketViewMode;
   chatDrawerOpen: boolean;
+  commandPaletteOpen: boolean;
 }
 
 const stored = loadThemeSelection();
@@ -75,6 +76,7 @@ const initialState: UiState = {
   focusMode: false,
   ticketViewMode: storedLayout.ticketViewMode,
   chatDrawerOpen: false,
+  commandPaletteOpen: false,
 };
 
 const uiSlice = createSlice({
@@ -162,6 +164,12 @@ const uiSlice = createSlice({
     setChatDrawerOpen: (state, action: PayloadAction<boolean>) => {
       state.chatDrawerOpen = action.payload;
     },
+    toggleCommandPalette: (state) => {
+      state.commandPaletteOpen = !state.commandPaletteOpen;
+    },
+    setCommandPaletteOpen: (state, action: PayloadAction<boolean>) => {
+      state.commandPaletteOpen = action.payload;
+    },
   },
 });
 
@@ -181,5 +189,7 @@ export const {
   setTicketViewMode,
   toggleChatDrawer,
   setChatDrawerOpen,
+  toggleCommandPalette,
+  setCommandPaletteOpen,
 } = uiSlice.actions;
 export default uiSlice.reducer;

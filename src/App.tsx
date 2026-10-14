@@ -276,6 +276,7 @@ const App = () => {
           <Route path="projects/:workspaceId/browse/:issueKey" element={<Workspace />} />
           <Route path="projects/:workspaceId/restructure" element={<Workspace section="restructure" />} />
           <Route path="projects/:workspaceId/settings" element={<Workspace section="settings" />} />
+          <Route path="projects/:workspaceId/initiatives" element={<Workspace section="initiatives" />} />
           <Route path="timesheet" element={<Timesheet />} />
           <Route path="reports" element={<ReportsHome />} />
           <Route path="reports/saved/:id" element={<SavedReportRoute />} />

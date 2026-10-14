@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Maximize2, Menu, Minimize2, Sparkles, UserRound } from 'lucide-react';
+import { LogOut, Maximize2, Menu, Minimize2, Search, Sparkles, UserRound } from 'lucide-react';
 import { type User, getDisplayName, getUserRoleName } from '@/types/index';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
-import { toggleChatDrawer, toggleFocusMode } from '@/features/ui/uiSlice';
+import { setCommandPaletteOpen, toggleChatDrawer, toggleFocusMode } from '@/features/ui/uiSlice';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -55,6 +55,22 @@ const Header = ({ title, user, onOpenSidebar, onLogout }: HeaderProps) => {
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* Command Palette button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => dispatch(setCommandPaletteOpen(true))}
+          title="Search & Commands (Cmd+K)"
+          aria-label="Search and run commands"
+          className="h-9 gap-2 px-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/60"
+        >
+          <Search className="size-3.5" />
+          <span className="hidden md:inline">Search...</span>
+          <kbd className="pointer-events-none hidden h-4 select-none items-center rounded border bg-muted px-1 font-mono text-[10px] font-medium text-muted-foreground sm:inline-flex">
+            ⌘K
+          </kbd>
+        </Button>
+
         {/* Focus Mode button */}
         <Button
           variant={focusMode ? 'default' : 'outline'}

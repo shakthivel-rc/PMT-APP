@@ -1,10 +1,11 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AppWindow, BarChart3, Maximize2, Minimize2, PanelRight, Settings, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { setTicketViewMode, toggleFocusMode } from '@/features/ui/uiSlice';
 import { createIssueApi, fetchBoardApi, moveIssueApi } from '@/api/issues';
+import { pqlApi } from '@/api/pql';
 import { canWriteIssues, type BoardColumn, type ListNode, type SpaceNode, type WorkspaceRole } from '@/types';
 import { spaceHref } from './SpaceView';
 import { cn } from '@/lib/utils';
@@ -19,6 +20,8 @@ import { errorMessage, isNotFound } from '../presentation';
 import BoardView from './BoardView';
 import IssueTable from './IssueTable';
 import IssueDrawer from './IssueDrawer';
+import { PQLSearchBar } from './PQLSearchBar';
+import { DailyStandupCard } from './DailyStandupCard';
 
 const SprintPanel = lazyWithRetry(
   () => import('@/features/sprints/components/SprintPanel').then((m) => ({ default: m.SprintPanel })),
@@ -67,6 +70,37 @@ const ListView = ({ workspaceId, space, list, role }: ListViewProps) => {
   const latestMove = useRef(0);
   const [sprintsOpen, setSprintsOpen] = useState(false);
   const reportsHref = `/reports?${new URLSearchParams({ workspace: workspaceId, scope: `space:${space.id}` }).toString()}`;
+
+  const [pqlMatchingIds, setPqlMatchingIds] = useState<Set<string> | null>(null);
+  const [pqlQuery, setPqlQuery] = useState('');
+
+  const handlePQLSearch = async (q: string) => {
+    setPqlQuery(q);
+    if (!q.trim()) {
+      setPqlMatchingIds(null);
+      return;
+    }
+    try {
+      const res = await pqlApi.execute(workspaceId, { query: q });
+      setPqlMatchingIds(new Set(res.data.records.map((r) => r.id)));
+      toast.success(`PQL matched ${res.data.records.length} issue(s)`);
+    } catch (err: any) {
+      toast.error(err.message || 'PQL execution failed');
+    }
+  };
+
+  const handlePQLClear = () => {
+    setPqlQuery('');
+    setPqlMatchingIds(null);
+  };
+
+  const displayedColumns = useMemo(() => {
+    if (!columns || pqlMatchingIds === null) return columns;
+    return columns.map((col) => ({
+      ...col,
+      cards: col.cards.filter((card) => pqlMatchingIds.has(card.id)),
+    }));
+  }, [columns, pqlMatchingIds]);
 
   const loadBoard = useCallback(
     () => fetchBoardApi(workspaceId, { list_id: list.id }).then((board) => board.columns),
@@ -253,20 +287,34 @@ const ListView = ({ workspaceId, space, list, role }: ListViewProps) => {
         </div>
       </div>
 
+      <DailyStandupCard workspaceId={workspaceId} />
+
+      <div className="py-1">
+        <PQLSearchBar
+          workspaceId={workspaceId}
+          onSearch={handlePQLSearch}
+          onClear={handlePQLClear}
+          initialQuery={pqlQuery}
+          onSaveView={(q) => {
+            toast.success(`Filter "${q}" saved to views.`);
+          }}
+        />
+      </div>
+
       {failure ? (
         <FormMessage>{failure}</FormMessage>
       ) : !columns ? (
         <Skeleton aria-busy="true" className="h-72 rounded-xl" />
       ) : view === 'board' ? (
         <BoardView
-          columns={columns}
+          columns={displayedColumns ?? []}
           canWrite={canWrite}
           onMove={moveCard}
           onAdd={addIssue}
           onOpen={setOpenIssueId}
         />
       ) : (
-        <IssueTable columns={columns} onOpen={setOpenIssueId} />
+        <IssueTable columns={displayedColumns ?? []} onOpen={setOpenIssueId} />
       )}
 
       <Dialog open={sprintsOpen} onOpenChange={setSprintsOpen}>

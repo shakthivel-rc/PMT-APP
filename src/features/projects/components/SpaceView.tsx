@@ -15,14 +15,16 @@ import SpaceBoard from './SpaceBoard';
 // board, and neither should weigh on the first paint of a space.
 const ReleasesView = lazyWithRetry(() => import('@/features/planning/components/ReleasesView'), 'ReleasesView');
 const SpaceSettings = lazyWithRetry(() => import('./SpaceSettings'), 'SpaceSettings');
+const TimelineView = lazyWithRetry(() => import('@/features/timeline/components/TimelineView'), 'TimelineView');
 
 /** The views of one space (09-restructuring.md §5). `board` is the default and is spelled by leaving the segment out. */
-export type SpaceTab = 'board' | 'sprint' | 'backlog' | 'releases' | 'settings';
+export type SpaceTab = 'board' | 'sprint' | 'backlog' | 'timeline' | 'releases' | 'settings';
 
 const TABS: { id: SpaceTab; label: string }[] = [
   { id: 'board', label: 'Overview' },
   { id: 'sprint', label: 'Active sprint' },
   { id: 'backlog', label: 'Backlog' },
+  { id: 'timeline', label: 'Timeline' },
   { id: 'releases', label: 'Releases' },
   { id: 'settings', label: 'Settings' },
 ];
@@ -93,6 +95,7 @@ const SpaceView = ({ workspaceId, space, role, tab = 'board', onChanged }: Space
         {tab === 'board' && <SpaceBoard key="space" workspaceId={workspaceId} space={space} role={role} scope="space" />}
         {tab === 'sprint' && <SpaceBoard key="sprint" workspaceId={workspaceId} space={space} role={role} scope="sprint" />}
         {tab === 'backlog' && <BacklogView workspaceId={workspaceId} space={space} role={role} />}
+        {tab === 'timeline' && <TimelineView workspaceId={workspaceId} space={space} role={role} />}
         {tab === 'releases' && <ReleasesView workspaceId={workspaceId} space={space} role={role} />}
         {tab === 'settings' && (
           <SpaceSettings workspaceId={workspaceId} space={space} role={role} onChanged={onChanged} />

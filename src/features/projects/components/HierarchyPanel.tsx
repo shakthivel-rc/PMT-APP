@@ -1,6 +1,6 @@
 import { useRef, useState, useTransition, type FormEvent } from 'react';
 import { Link, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, Folder, Loader2, Plus, Settings } from 'lucide-react';
+import { ChevronLeft, Folder, Layers, Loader2, Plus, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { createListApi, createSpaceApi } from '@/api/workspaces';
 import { canManageWorkspace, type FolderNode, type ListNode, type SpaceNode, type WorkspaceTree } from '@/types';
@@ -249,7 +249,7 @@ const HierarchyPanel = ({
           </div>
           <StatusBadge tone="neutral">{humanize(tree.role)}</StatusBadge>
         </div>
-        <div className="mt-2">
+        <div className="mt-2 space-y-1">
           <NavLink
             to={`/projects/${tree.id}/settings`}
             className={cn(
@@ -261,6 +261,18 @@ const HierarchyPanel = ({
           >
             <Settings className="size-3.5 shrink-0" aria-hidden="true" />
             <span className="truncate">Common Settings (All Projects)</span>
+          </NavLink>
+          <NavLink
+            to={`/projects/${tree.id}/initiatives`}
+            className={cn(
+              'flex items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
+              activeSection === 'initiatives'
+                ? 'bg-primary/15 font-semibold text-primary border-l-2 border-primary pl-2.5'
+                : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+            )}
+          >
+            <Layers className="size-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">Portfolio Initiatives</span>
           </NavLink>
         </div>
       </div>

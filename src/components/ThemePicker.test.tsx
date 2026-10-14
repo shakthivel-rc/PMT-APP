@@ -15,6 +15,7 @@ const uiState = (over: Partial<{ theme: string; dayTheme: string; nightTheme: st
       focusMode: false,
       ticketViewMode: 'drawer',
       chatDrawerOpen: false,
+      commandPaletteOpen: false,
       ...over,
     },
   }) as Partial<RootState>;

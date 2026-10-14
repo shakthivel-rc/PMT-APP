@@ -2,6 +2,7 @@ import { useEffect, useState, useTransition, type FormEvent } from 'react';
 import {
   ArrowRight,
   Cloud,
+  Coins,
   Copy,
   Info,
   Layers,
@@ -19,10 +20,12 @@ import {
   addMemberApi,
   fetchGovernanceApi,
   fetchMembersApi,
+  fetchWorkspaceRatesApi,
   removeMemberApi,
   updateGovernanceApi,
   updateMemberApi,
   updateWorkspaceApi,
+  updateWorkspaceRatesApi,
 } from '@/api/workspaces';
 import {
   deleteWorkflowTemplateApi,
@@ -33,8 +36,10 @@ import { assignableRoles, canManageMember } from '@/lib/workspaceRules';
 import {
   canManageWorkspace,
   type GovernanceSettings,
+  type MemberRateItem,
   type MemberSummary,
   type StageColor,
+  type WorkspaceRatesUpdate,
   type WorkspaceRole,
   type WorkspaceTree,
 } from '@/types';
@@ -59,7 +64,7 @@ export interface WorkspaceSettingsProps {
   onChanged: () => Promise<unknown>;
 }
 
-type WorkspaceSettingsSection = 'governance' | 'templates' | 'general' | 'members' | 'storage';
+type WorkspaceSettingsSection = 'governance' | 'templates' | 'general' | 'members' | 'storage' | 'finance';
 
 const nameOf = (m: MemberSummary) => `${m.first_name} ${m.last_name}`.trim() || m.email;
 
@@ -878,6 +883,206 @@ const MembersSection = ({
 };
 
 /**
+ * 6. Finance & Billing Rates Section
+ * Configures default currency, hourly rate, and team member rate overrides.
+ */
+const FinanceSection = ({
+  workspaceId,
+  manage,
+}: {
+  workspaceId: string;
+  manage: boolean;
+}) => {
+  const [loading, setLoading] = useState(true);
+  const [currency, setCurrency] = useState('USD');
+  const [defaultRate, setDefaultRate] = useState<string>('');
+  const [memberRates, setMemberRates] = useState<MemberRateItem[]>([]);
+  const [saving, startSaving] = useTransition();
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+
+    fetchWorkspaceRatesApi(workspaceId)
+      .then((data) => {
+        if (cancelled) return;
+        setCurrency(data.currency || 'USD');
+        setDefaultRate(data.default_billing_rate != null ? String(data.default_billing_rate) : '');
+        setMemberRates(data.member_rates || []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setLoading(false);
+        toast.error(`Failed to load billing rates: ${errorMessage(err)}`);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId]);
+
+  const handleMemberRateChange = (userId: string, rateStr: string) => {
+    setMemberRates((prev) =>
+      prev.map((item) => {
+        if (item.user_id !== userId) return item;
+        const rate = rateStr.trim() === '' ? null : Number(rateStr);
+        return { ...item, hourly_rate: isNaN(rate as number) ? null : rate };
+      }),
+    );
+  };
+
+  const handleSave = (e: FormEvent) => {
+    e.preventDefault();
+    if (!manage) return;
+
+    startSaving(async () => {
+      try {
+        const payload: WorkspaceRatesUpdate = {
+          currency,
+          default_billing_rate: defaultRate.trim() === '' ? null : Number(defaultRate),
+          member_rates: memberRates
+            .filter((m) => m.hourly_rate !== null && m.hourly_rate !== undefined && !isNaN(m.hourly_rate as number))
+            .map((m) => ({
+              user_id: m.user_id,
+              hourly_rate: Number(m.hourly_rate),
+            })),
+        };
+
+        const res = await updateWorkspaceRatesApi(workspaceId, payload);
+        setCurrency(res.currency);
+        setDefaultRate(res.default_billing_rate != null ? String(res.default_billing_rate) : '');
+        setMemberRates(res.member_rates);
+        toast.success('Finance and billing rates updated successfully.');
+      } catch (err) {
+        toast.error(errorMessage(err));
+      }
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-28 w-full rounded-xl" />
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSave} className="space-y-6">
+      <div className="border-b pb-4">
+        <h2 className="text-lg font-semibold tracking-tight">Finance & Billing Rates</h2>
+        <p className="text-xs text-muted-foreground">
+          Configure default hourly billing rate, invoice currency, and individual member rate overrides.
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Workspace Financial Defaults</CardTitle>
+          <CardDescription>
+            The default currency and billing rate applied to time entries logged by members without custom rates.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="currency-select">Workspace Currency</Label>
+              <Select value={currency} onValueChange={setCurrency} disabled={!manage}>
+                <SelectTrigger id="currency-select">
+                  <SelectValue placeholder="Select currency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="USD">USD ($) - US Dollar</SelectItem>
+                  <SelectItem value="EUR">EUR (€) - Euro</SelectItem>
+                  <SelectItem value="GBP">GBP (£) - British Pound</SelectItem>
+                  <SelectItem value="INR">INR (₹) - Indian Rupee</SelectItem>
+                  <SelectItem value="CAD">CAD ($) - Canadian Dollar</SelectItem>
+                  <SelectItem value="AUD">AUD ($) - Australian Dollar</SelectItem>
+                  <SelectItem value="JPY">JPY (¥) - Japanese Yen</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="default-rate-input">Default Hourly Billing Rate</Label>
+              <Input
+                id="default-rate-input"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={defaultRate}
+                onChange={(e) => setDefaultRate(e.target.value)}
+                disabled={!manage}
+              />
+              <p className="text-2xs text-muted-foreground">
+                Base rate per hour in {currency}.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Team Member Billing Rates</CardTitle>
+          <CardDescription>
+            Customize hourly rates per team member. Leave empty to inherit the workspace default rate.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {memberRates.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">No workspace members found.</p>
+          ) : (
+            <div className="divide-y divide-border">
+              {memberRates.map((m) => (
+                <div key={m.user_id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium leading-none text-foreground">
+                      {m.display_name || m.email}
+                    </p>
+                    <p className="text-2xs text-muted-foreground mt-1">
+                      {m.email} · <span className="capitalize">{m.role}</span>
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-muted-foreground">{currency}</span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder={defaultRate ? `${defaultRate} (default)` : 'Default'}
+                      value={m.hourly_rate != null ? String(m.hourly_rate) : ''}
+                      onChange={(e) => handleMemberRateChange(m.user_id, e.target.value)}
+                      disabled={!manage}
+                      className="w-32 text-right font-mono text-sm"
+                      aria-label={`Hourly rate for ${m.display_name || m.email}`}
+                    />
+                    <span className="text-xs text-muted-foreground">/ hr</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {manage && (
+        <div className="flex justify-end">
+          <Button type="submit" disabled={saving}>
+            {saving && <Loader2 className="size-4 animate-spin mr-2" />}
+            Save Finance Settings
+          </Button>
+        </div>
+      )}
+    </form>
+  );
+};
+
+/**
  * Common Workspace / Project Settings Hub Component
  */
 export const WorkspaceSettings = ({
@@ -970,6 +1175,20 @@ export const WorkspaceSettings = ({
               <Cloud className="size-4 shrink-0" aria-hidden="true" />
               <span>Storage & Cloud (MCP)</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setSection('finance')}
+              className={cn(
+                'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors text-left',
+                section === 'finance'
+                  ? 'bg-primary/10 text-primary font-semibold'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+              )}
+            >
+              <Coins className="size-4 shrink-0" aria-hidden="true" />
+              <span>Finance & Billing Rates</span>
+            </button>
           </nav>
         </div>
       </aside>
@@ -1013,6 +1232,14 @@ export const WorkspaceSettings = ({
 
         {section === 'storage' && (
           <StorageSection workspaceId={workspaceId} manage={manage} />
+        )}
+
+        {section === 'finance' && (
+          <FinanceSection
+            key={workspaceId + '-finance'}
+            workspaceId={workspaceId}
+            manage={manage}
+          />
         )}
       </div>
     </div>

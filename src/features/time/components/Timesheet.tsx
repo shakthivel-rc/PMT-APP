@@ -201,6 +201,27 @@ const Timesheet = () => {
       ),
     },
     {
+      key: 'value',
+      header: 'Value',
+      align: 'right',
+      cell: (e) => {
+        if (!e.billable) {
+          return <span className="text-2xs text-muted-foreground">Non-billable</span>;
+        }
+        if (e.cost_amount != null) {
+          return (
+            <span className="font-mono text-xs tabular-nums text-foreground">
+              ${e.cost_amount.toFixed(2)}
+              {e.billing_rate != null && (
+                <span className="text-2xs text-muted-foreground ml-1">(@ ${e.billing_rate}/h)</span>
+              )}
+            </span>
+          );
+        }
+        return '—';
+      },
+    },
+    {
       key: 'note',
       header: 'Note',
       cellClassName: 'max-w-md',
@@ -300,6 +321,11 @@ const Timesheet = () => {
       <p className="mb-4 text-sm text-muted-foreground" aria-live="polite">
         {weekLabel}
         {grid ? ` · ${formatDuration(grid.total)} logged` : ''}
+        {entries?.data?.total_cost_amount != null && entries.data.total_cost_amount > 0 ? (
+          <span className="ml-2 font-medium text-foreground">
+            · Total value: ${entries.data.total_cost_amount.toFixed(2)} ({entries.data.currency || 'USD'})
+          </span>
+        ) : null}
       </p>
 
       {settings && !settings.enabled && (

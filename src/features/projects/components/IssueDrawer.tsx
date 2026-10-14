@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useTransition, type FormEvent, type ReactN
 import {
   AlertTriangle,
   AppWindow,
+  Bot,
   Check,
   Copy,
   Loader2,
@@ -17,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { aiAgentsApi } from '@/api/aiAgents';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { setTicketViewMode } from '@/features/ui/uiSlice';
 import { cn } from '@/lib/utils';
@@ -37,11 +39,13 @@ import {
 } from '@/api/issues';
 import { fetchFixVersionsApi, fetchReleasesApi, setFixVersionsApi } from '@/api/releases';
 import { fetchMembersApi } from '@/api/workspaces';
+import { deploymentsApi } from '@/api/deployments';
 import type {
   AIJobSummary,
   CommentSummary,
   IssueAttachment,
   IssueCard,
+  IssueDeploymentSummary,
   IssueDetail,
   IssuePriority,
   IssueType,
@@ -49,6 +53,7 @@ import type {
   SpaceNode,
   StatusSummary,
   ThreadSummary,
+  TriageResult,
 } from '@/types';
 import type { FixVersion, ReleaseSummary } from '@/types/releases';
 import FormMessage from '@/components/FormMessage';
@@ -74,7 +79,7 @@ import {
 } from '@/components/ui/sheet';
 import { formatServerDateTime } from '@/lib/datetime';
 import { MarkdownEditor, SafeMarkdownView } from '@/components/MarkdownEditor';
-import { errorMessage, humanize, isNotFound, IssueTypeBadge, PriorityBadge, PullRequestBadge, StageBadge } from '../presentation';
+import { DeploymentBadge, errorMessage, humanize, isNotFound, IssueTypeBadge, PriorityBadge, PullRequestBadge, StageBadge } from '../presentation';
 import TimeTrackingPanel from './TimeTrackingPanel';
 import { IssueAttachments, formatBytes } from './IssueAttachments';
 import { CommentAttachmentList } from './CommentAttachmentList';
@@ -212,6 +217,107 @@ const ThreadSummaryPanel = ({ workspaceId, issueId }: { workspaceId: string; iss
             {state.job.cached && 'Reused: the thread has not changed since this summary was written. '}
             AI-generated{state.job.model ? ` by ${state.job.model}` : ''} — check it against the thread.
           </p>
+        </div>
+      )}
+    </section>
+  );
+};
+
+const AITriagePanel = ({
+  workspaceId,
+  issueId,
+  onTriaged,
+}: {
+  workspaceId: string;
+  issueId: string;
+  onTriaged?: () => void;
+}) => {
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<TriageResult | null>(null);
+
+  const triage = async () => {
+    setRunning(true);
+    try {
+      const res = await aiAgentsApi.triageIssue(workspaceId, issueId);
+      setResult(res.data);
+      if (res.data.potential_duplicate) {
+        toast.warning(
+          `Potential duplicate detected: ${res.data.duplicate_issue_key}`,
+        );
+      } else {
+        toast.success('Auto-triage completed: No duplicates found');
+      }
+      onTriaged?.();
+    } catch (err) {
+      toast.error('Failed to run autonomous triage');
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <section className="rounded-lg border p-3" aria-busy={running || undefined}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <Bot className="size-4 text-primary" />
+          <h3 className="text-sm font-semibold">Autonomous Triage & Deduplication</h3>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 font-medium shadow-2xs transition-colors"
+          onClick={() => void triage()}
+          disabled={running}
+        >
+          {running ? (
+            <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden="true" />
+          ) : (
+            <Sparkles className="mr-1.5 size-3.5" aria-hidden="true" />
+          )}
+          {running ? 'Triaging ticket…' : result ? 'Re-triage ticket' : 'Auto-triage ticket'}
+        </Button>
+      </div>
+
+      {result && (
+        <div className="mt-3 space-y-3 text-xs">
+          {result.potential_duplicate && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-2.5 text-amber-800 dark:text-amber-300 space-y-1">
+              <div className="font-semibold flex items-center gap-1.5">
+                <AlertTriangle className="size-3.5 shrink-0" />
+                <span>
+                  Potential duplicate detected ({Math.round((result.similarity_score ?? 0) * 100)}% match)
+                </span>
+              </div>
+              <p className="text-2xs">
+                Related to <strong className="font-mono">{result.duplicate_issue_key}</strong>: {result.duplicate_issue_title}
+              </p>
+              <div className="text-3xs text-amber-700 dark:text-amber-400">
+                Automatically linked as related issue with triage memo posted.
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-2 bg-muted/20 p-2 rounded border">
+            <div>
+              <span className="text-3xs text-muted-foreground uppercase font-semibold">Suggested Priority</span>
+              <p className="font-semibold text-foreground uppercase">{result.suggested_priority || 'Standard'}</p>
+            </div>
+            <div>
+              <span className="text-3xs text-muted-foreground uppercase font-semibold">Suggested Owner</span>
+              <p className="font-semibold text-foreground">{result.suggested_assignee_name || 'Unassigned'}</p>
+            </div>
+          </div>
+
+          {result.structured_reproduction_steps && (
+            <div>
+              <span className="text-3xs text-muted-foreground uppercase font-semibold">
+                Extracted Reproduction Specification
+              </span>
+              <pre className="mt-1 p-2 rounded bg-muted/40 font-mono text-2xs whitespace-pre-wrap leading-relaxed overflow-x-auto border">
+                {result.structured_reproduction_steps}
+              </pre>
+            </div>
+          )}
         </div>
       )}
     </section>
@@ -659,6 +765,7 @@ const IssuePanel = ({
   const [members, setMembers] = useState<MemberSummary[]>([]);
   const [fixVersions, setFixVersions] = useState<FixVersion[]>([]);
   const [spaceReleases, setSpaceReleases] = useState<ReleaseSummary[]>([]);
+  const [deployments, setDeployments] = useState<IssueDeploymentSummary[]>([]);
   const [failure, setFailure] = useState<string | null>(null);
 
   // Inline editing states
@@ -671,6 +778,8 @@ const IssuePanel = ({
   const [isBlockingOpen, setIsBlockingOpen] = useState(false);
   const [blockedReasonDraft, setBlockedReasonDraft] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [reloadTick, setReloadTick] = useState(0);
+  const reload = () => setReloadTick((t) => t + 1);
 
   useEffect(() => {
     let cancelled = false;
@@ -679,13 +788,15 @@ const IssuePanel = ({
       fetchCommentsApi(workspaceId, issueId),
       fetchFixVersionsApi(workspaceId, issueId).catch(() => [] as FixVersion[]),
       fetchMembersApi(workspaceId).catch(() => [] as MemberSummary[]),
+      deploymentsApi.getIssueDeployments(workspaceId, issueId).then((r) => r.data).catch(() => [] as IssueDeploymentSummary[]),
     ])
-      .then(([detail, thread, versions, workspaceMembers]) => {
+      .then(([detail, thread, versions, workspaceMembers, issueDeployments]) => {
         if (cancelled) return;
         setIssue(detail);
         setComments(thread);
         setFixVersions(versions);
         setMembers(workspaceMembers);
+        setDeployments(issueDeployments);
         if (detail.space_id) {
           fetchReleasesApi(workspaceId, detail.space_id)
             .then((rels) => {
@@ -700,7 +811,7 @@ const IssuePanel = ({
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, issueId]);
+  }, [workspaceId, issueId, reloadTick]);
 
   if (!issue) {
     // The sheet is a dialog and must be named even before there is anything to name it by.
@@ -1570,8 +1681,45 @@ const IssuePanel = ({
           </Section>
         ) : null;
 
+        const deploymentsSection = deployments.length > 0 ? (
+          <Section title={`Deployments (${deployments.length})`}>
+            <ul className="space-y-2">
+              {deployments.map((dep) => (
+                <li
+                  key={dep.deployment_id}
+                  className="flex items-center justify-between gap-3 text-sm rounded-md border p-2.5 bg-muted/20"
+                >
+                  <div className="min-w-0 space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-xs capitalize text-foreground">{dep.environment}</span>
+                      <DeploymentBadge environment={dep.environment} status={dep.status} />
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
+                      <span>{dep.commit_sha.slice(0, 7)}</span>
+                      {dep.ref_name && <span>· {dep.ref_name}</span>}
+                      {dep.deployed_at && <span>· {formatServerDateTime(dep.deployed_at)}</span>}
+                    </div>
+                  </div>
+                  {dep.deployment_url && isWebUrl(dep.deployment_url) && (
+                    <Button asChild variant="outline" size="xs">
+                      <a href={dep.deployment_url} target="_blank" rel="noopener noreferrer">
+                        View
+                        <span className="sr-only"> (opens in a new tab)</span>
+                      </a>
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </Section>
+        ) : null;
+
         const timeTrackingSection = (
           <TimeTrackingPanel workspaceId={workspaceId} issue={issue} canWrite={canWrite} onIssueChange={changeIssue} />
+        );
+
+        const aiTriageSection = (
+          <AITriagePanel workspaceId={workspaceId} issueId={issueId} onTriaged={reload} />
         );
 
         const threadSummarySection = (
@@ -1618,6 +1766,7 @@ const IssuePanel = ({
                 <div className="lg:col-span-7 xl:col-span-8 space-y-6">
                   {descriptionSection}
                   {attachmentsSection}
+                  {aiTriageSection}
                   {threadSummarySection}
                   {commentsSection}
                 </div>
@@ -1627,6 +1776,7 @@ const IssuePanel = ({
                   {releasesSection}
                   {childrenSection}
                   {prSection}
+                  {deploymentsSection}
                   {timeTrackingSection}
                 </div>
               </div>
@@ -1638,7 +1788,9 @@ const IssuePanel = ({
                 {descriptionSection}
                 {childrenSection}
                 {prSection}
+                {deploymentsSection}
                 {timeTrackingSection}
+                {aiTriageSection}
                 {threadSummarySection}
                 {attachmentsSection}
                 {commentsSection}

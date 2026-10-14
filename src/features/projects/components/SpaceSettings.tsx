@@ -2,7 +2,10 @@ import { Suspense, useEffect, useState, useTransition, type FormEvent } from 're
 import {
   AlertTriangle,
   Archive,
+  Bot,
+  CheckCircle2,
   Cloud,
+  Coins,
   ExternalLink,
   GitBranch,
   GitMerge,
@@ -10,10 +13,12 @@ import {
   Settings,
   Shield,
   Snowflake,
+  Sparkles,
   Users,
   Workflow,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { aiAgentsApi } from '@/api/aiAgents';
 import {
   addMemberApi,
   archiveSpaceApi,
@@ -33,6 +38,7 @@ import { useAppSelector } from '@/app/hooks';
 import { assignableRoles, canManageMember } from '@/lib/workspaceRules';
 import {
   canManageWorkspace,
+  type BacklogHygieneResponse,
   type MemberSummary,
   type RepositorySummary,
   type SpaceDetail,
@@ -51,6 +57,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { cn } from '@/lib/utils';
 import { spaceKeyProblem } from '../fieldRules';
 import { errorMessage, humanize } from '../presentation';
 import { StorageSection } from './StorageSection';
@@ -67,7 +74,7 @@ export interface SpaceSettingsProps {
   onChanged: () => Promise<unknown>;
 }
 
-type SettingsSection = 'workflow' | 'general' | 'members' | 'storage' | 'integrations' | 'danger';
+type SettingsSection = 'workflow' | 'general' | 'ai' | 'budget' | 'members' | 'storage' | 'integrations' | 'danger';
 
 /**
  * General space details & project charter editing form.
@@ -356,6 +363,373 @@ const GeneralSection = ({
         </form>
       </CardContent>
     </Card>
+  );
+};
+
+/**
+ * Space Budget & Financial Tracking Section.
+ */
+const BudgetSection = ({
+  workspaceId,
+  space,
+  manage,
+  onChanged,
+}: {
+  workspaceId: string;
+  space: SpaceNode;
+  manage: boolean;
+  onChanged: () => Promise<unknown>;
+}) => {
+  const [budgetAmount, setBudgetAmount] = useState<string>(
+    space.budget_amount != null ? String(space.budget_amount) : '',
+  );
+  const [alertThreshold, setAlertThreshold] = useState<number>(
+    space.budget_alert_threshold ?? 80,
+  );
+  const [saving, startSaving] = useTransition();
+
+  const spent = space.budget_spent ?? 0;
+  const ceiling = space.budget_amount != null ? Number(space.budget_amount) : null;
+  const percentage = ceiling && ceiling > 0 ? Math.min(Math.round((spent / ceiling) * 100), 100) : 0;
+  const isOverBudget = ceiling !== null && ceiling > 0 && spent >= ceiling;
+  const isWarning = ceiling !== null && ceiling > 0 && spent >= (ceiling * alertThreshold) / 100 && !isOverBudget;
+
+  const handleSave = (e: FormEvent) => {
+    e.preventDefault();
+    if (!manage || space.archived || space.frozen) return;
+
+    startSaving(async () => {
+      try {
+        const payload: SpaceUpdate = {
+          budget_amount: budgetAmount.trim() === '' ? null : Number(budgetAmount),
+          budget_alert_threshold: alertThreshold,
+        };
+
+        await updateSpaceApi(workspaceId, space.id, payload);
+        await onChanged();
+        toast.success('Space budget settings updated.');
+      } catch (err) {
+        toast.error(errorMessage(err));
+      }
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Budget & Cost Tracking</CardTitle>
+        <CardDescription>
+          Establish a financial budget ceiling for this project space and track burn rate as team members log time.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {/* Progress & Status */}
+        {ceiling !== null && ceiling > 0 ? (
+          <div className="mb-6 rounded-xl border bg-muted/30 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs text-muted-foreground uppercase font-medium">Budget Spent</span>
+                <p className="text-xl font-bold tracking-tight">
+                  ${spent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <span className="text-sm font-normal text-muted-foreground ml-1.5">
+                    of ${ceiling.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </p>
+              </div>
+
+              <div>
+                {isOverBudget ? (
+                  <StatusBadge tone="danger">Exceeded ({percentage}%)</StatusBadge>
+                ) : isWarning ? (
+                  <StatusBadge tone="warning">Threshold Reached ({percentage}%)</StatusBadge>
+                ) : (
+                  <StatusBadge tone="success">On Track ({percentage}%)</StatusBadge>
+                )}
+              </div>
+            </div>
+
+            {/* Visual Gauge / Progress Bar */}
+            <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden">
+              <div
+                className={cn(
+                  'h-2.5 rounded-full transition-all duration-300',
+                  isOverBudget ? 'bg-danger' : isWarning ? 'bg-warning' : 'bg-success',
+                )}
+                style={{ width: `${Math.min(percentage, 100)}%` }}
+              />
+            </div>
+            <p className="text-2xs text-muted-foreground">
+              Alert threshold set to {alertThreshold}%. Warning triggers when spent cost reaches this limit.
+            </p>
+          </div>
+        ) : (
+          <div className="mb-6 rounded-xl border border-dashed p-4 text-center text-sm text-muted-foreground">
+            No budget ceiling set for this space. Costs accumulate automatically based on workspace hourly rates.
+            {spent > 0 && (
+              <p className="mt-1 font-medium text-foreground">
+                Current cost logged: ${spent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            )}
+          </div>
+        )}
+
+        <form onSubmit={handleSave} className="grid max-w-xl gap-5">
+          <div className="grid gap-1.5">
+            <Label htmlFor="space-budget-amount">Budget Amount ($)</Label>
+            <Input
+              id="space-budget-amount"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="e.g. 25000.00"
+              value={budgetAmount}
+              onChange={(e) => setBudgetAmount(e.target.value)}
+              disabled={!manage || space.archived || space.frozen}
+            />
+            <p className="text-2xs text-muted-foreground">
+              Total project expenditure ceiling. Leave empty for unlimited.
+            </p>
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label htmlFor="space-budget-threshold">Alert Threshold ({alertThreshold}%)</Label>
+            <Input
+              id="space-budget-threshold"
+              type="number"
+              min="10"
+              max="100"
+              step="5"
+              value={alertThreshold}
+              onChange={(e) => setAlertThreshold(Number(e.target.value))}
+              disabled={!manage || space.archived || space.frozen}
+            />
+            <p className="text-2xs text-muted-foreground">
+              Warning status triggers when spent cost reaches this percentage of total budget.
+            </p>
+          </div>
+
+          {manage && !space.archived && !space.frozen && (
+            <div className="flex justify-end pt-2">
+              <Button type="submit" disabled={saving}>
+                {saving && <Loader2 className="size-4 animate-spin mr-2" />}
+                Save Budget Settings
+              </Button>
+            </div>
+          )}
+        </form>
+      </CardContent>
+    </Card>
+  );
+};
+
+/**
+ * Phase 3 Autonomous AI Agents & Workflows Governance Section.
+ */
+const AIAgentsSection = ({
+  workspaceId,
+  space,
+  manage,
+  onChanged,
+}: {
+  workspaceId: string;
+  space: SpaceNode;
+  manage: boolean;
+  onChanged: () => Promise<unknown>;
+}) => {
+  const [triageEnabled, setTriageEnabled] = useState(space.ai_triage_enabled ?? true);
+  const [standupEnabled, setStandupEnabled] = useState(space.ai_standup_enabled ?? true);
+  const [retroEnabled, setRetroEnabled] = useState(space.ai_retrospective_enabled ?? true);
+  const [saving, setSaving] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [hygieneReport, setHygieneReport] = useState<BacklogHygieneResponse | null>(null);
+
+  const handleSave = async (e: FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await updateSpaceApi(workspaceId, space.id, {
+        ai_triage_enabled: triageEnabled,
+        ai_standup_enabled: standupEnabled,
+        ai_retrospective_enabled: retroEnabled,
+      });
+      toast.success('AI Autonomous Agent governance settings saved');
+      await onChanged();
+    } catch (err) {
+      toast.error(errorMessage(err) || 'Failed to save AI agent settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleScanHygiene = async () => {
+    setScanning(true);
+    try {
+      const res = await aiAgentsApi.getBacklogHygiene(workspaceId, space.id, 90);
+      setHygieneReport(res.data);
+      if (res.data.stale_count === 0) {
+        toast.success('Backlog hygiene check passed: no stale items found (>90 days)');
+      } else {
+        toast.info(`Found ${res.data.stale_count} stale backlog items requiring review`);
+      }
+    } catch (err) {
+      toast.error('Failed to scan backlog hygiene');
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <CardTitle>Autonomous AI Agents & Workflows</CardTitle>
+          </div>
+          <CardDescription>
+            Configure proactive background agents that eliminate team administrative friction.
+            All autonomous actions operate strictly under Tier 0/1 permissions (comments, linking, triage tags) and never delete or archive data.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSave} className="space-y-6">
+            {/* Auto-Triage & Deduplication */}
+            <div className="flex items-start gap-4 rounded-xl border p-4 bg-muted/20">
+              <input
+                id="toggle-ai-triage"
+                type="checkbox"
+                checked={triageEnabled}
+                onChange={(e) => setTriageEnabled(e.target.checked)}
+                disabled={!manage || space.archived || space.frozen}
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <div className="space-y-1">
+                <Label htmlFor="toggle-ai-triage" className="text-sm font-semibold cursor-pointer">
+                  Autonomous Bug Triage & Deduplication
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Scans incoming issues for semantic duplicates (&gt;85% similarity), links related dependencies, evaluates active team WIP to suggest owners, and extracts structured reproduction steps.
+                </p>
+              </div>
+            </div>
+
+            {/* Daily Standup & Trajectory Forecast */}
+            <div className="flex items-start gap-4 rounded-xl border p-4 bg-muted/20">
+              <input
+                id="toggle-ai-standup"
+                type="checkbox"
+                checked={standupEnabled}
+                onChange={(e) => setStandupEnabled(e.target.checked)}
+                disabled={!manage || space.archived || space.frozen}
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <div className="space-y-1">
+                <Label htmlFor="toggle-ai-standup" className="text-sm font-semibold cursor-pointer">
+                  Automated Daily Standup & Trajectory Forecast
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Synthesizes daily activity matrices (completed work, in-flight tickets, blockers) and projects active sprint burndown velocity health.
+                </p>
+              </div>
+            </div>
+
+            {/* Automated Sprint Retrospectives */}
+            <div className="flex items-start gap-4 rounded-xl border p-4 bg-muted/20">
+              <input
+                id="toggle-ai-retro"
+                type="checkbox"
+                checked={retroEnabled}
+                onChange={(e) => setRetroEnabled(e.target.checked)}
+                disabled={!manage || space.archived || space.frozen}
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <div className="space-y-1">
+                <Label htmlFor="toggle-ai-retro" className="text-sm font-semibold cursor-pointer">
+                  Automated Sprint Retrospectives
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Generates an executive post-mortem upon sprint closure highlighting high-velocity delivery wins, scope creep (mid-sprint additions), and cycle time outliers.
+                </p>
+              </div>
+            </div>
+
+            {manage && !space.archived && !space.frozen && (
+              <div className="flex justify-end pt-2">
+                <Button type="submit" disabled={saving}>
+                  {saving && <Loader2 className="size-4 animate-spin mr-2" />}
+                  Save AI Agent Settings
+                </Button>
+              </div>
+            )}
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Backlog Hygiene Scan Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Bot className="h-4 w-4 text-primary" />
+                Backlog Hygiene Scanner
+              </CardTitle>
+              <CardDescription>
+                Detects issues in this space inactive for more than 90 days and suggests actionable tidy recommendations.
+              </CardDescription>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleScanHygiene}
+              disabled={scanning}
+            >
+              {scanning && <Loader2 className="size-3.5 animate-spin mr-1.5" />}
+              Scan Backlog
+            </Button>
+          </div>
+        </CardHeader>
+        {hygieneReport && (
+          <CardContent>
+            {hygieneReport.items.length === 0 ? (
+              <div className="flex items-center gap-2 text-sm text-success p-3 rounded-lg border border-success/30 bg-success/10">
+                <CheckCircle2 className="size-4 shrink-0" />
+                Backlog is spotless! No inactive issues found past {hygieneReport.threshold_days} days.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {hygieneReport.stale_count} Stale Backlog Item(s)
+                </div>
+                <div className="rounded-lg border overflow-hidden text-xs">
+                  <table className="w-full border-collapse">
+                    <thead className="bg-muted text-muted-foreground text-left">
+                      <tr>
+                        <th className="p-2.5 font-medium">Key</th>
+                        <th className="p-2.5 font-medium">Title</th>
+                        <th className="p-2.5 font-medium">Inactive</th>
+                        <th className="p-2.5 font-medium">Recommendation</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {hygieneReport.items.map((item) => (
+                        <tr key={item.issue_id} className="hover:bg-muted/50 transition-colors">
+                          <td className="p-2.5 font-mono font-medium text-primary">{item.key}</td>
+                          <td className="p-2.5 font-medium text-foreground">{item.title}</td>
+                          <td className="p-2.5 text-muted-foreground">{item.days_inactive} days</td>
+                          <td className="p-2.5 text-foreground">{item.recommendation}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
+    </div>
   );
 };
 
@@ -1079,6 +1453,32 @@ export const SpaceSettings = ({ workspaceId, space, role, onChanged }: SpaceSett
 
             <button
               type="button"
+              onClick={() => setSection('ai')}
+              className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                section === 'ai'
+                  ? 'bg-primary/10 text-primary font-semibold'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <Sparkles className="size-4 shrink-0 text-primary" aria-hidden="true" />
+              Autonomous AI Agents
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSection('budget')}
+              className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                section === 'budget'
+                  ? 'bg-primary/10 text-primary font-semibold'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <Coins className="size-4 shrink-0" aria-hidden="true" />
+              Budget & Cost Tracking
+            </button>
+
+            <button
+              type="button"
               onClick={() => setSection('members')}
               className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 section === 'members'
@@ -1145,6 +1545,26 @@ export const SpaceSettings = ({ workspaceId, space, role, onChanged }: SpaceSett
         {section === 'general' && (
           <GeneralSection
             key={space.id + space.name}
+            workspaceId={workspaceId}
+            space={space}
+            manage={manage}
+            onChanged={onChanged}
+          />
+        )}
+
+        {section === 'ai' && (
+          <AIAgentsSection
+            key={space.id + '-ai'}
+            workspaceId={workspaceId}
+            space={space}
+            manage={manage}
+            onChanged={onChanged}
+          />
+        )}
+
+        {section === 'budget' && (
+          <BudgetSection
+            key={space.id + '-budget'}
             workspaceId={workspaceId}
             space={space}
             manage={manage}
