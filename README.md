@@ -2,7 +2,7 @@
 
 React 19 single-page app for **PMT (Project Management Tool)** — a full-featured project management platform providing Workspaces, Spaces, Folders, Lists, Epics, Stories, Tasks, Bugs, Subtasks, interactive Kanban and List boards with custom workflows, Sprints with metrics dashboard and lifecycle tracking, Time tracking with live stopwatch and timesheets, analytical Reports (15 report types, CSV/XLSX/PDF exports, schedules), Releases, File Storage/Attachments, GitHub integration, AI Assistant Chat with persistent conversations and model credential management, Common and space settings, alongside user management, RBAC, and audit logs.
 
-Consumes the FastAPI backend in the [`pmt-api`](https://github.com/your-org/pmt-api) repository.
+Consumes the FastAPI backend in the [`pmt-api`](https://github.com/shakthivel-rc/PMT-API) repository.
 
 ---
 
@@ -44,7 +44,7 @@ HTTP client dependency.
 The backend repo owns the one-command setup and clones this one for you:
 
 ```bash
-git clone https://github.com/your-org/pmt-api.git && cd pmt-api && make setup
+git clone https://github.com/shakthivel-rc/PMT-API.git && cd pmt-api && make setup
 ```
 
 That brings up MySQL, the API and this SPA behind nginx on <http://localhost:8080>. It is the
