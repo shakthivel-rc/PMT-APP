@@ -12,6 +12,10 @@ export const AIChatDrawer: React.FC = () => {
   const isOpen = useAppSelector((state) => state.ui.chatDrawerOpen);
   const isChatPage = location.pathname.startsWith('/chat');
 
+  // Match /projects/:workspaceId from route if present
+  const projectMatch = location.pathname.match(/\/projects\/([a-zA-Z0-9-]+)/);
+  const currentWorkspaceId = projectMatch ? projectMatch[1] : undefined;
+
   return (
     <>
       {/* Floating Action Button (bottom-right) */}
@@ -37,7 +41,10 @@ export const AIChatDrawer: React.FC = () => {
             <DialogTitle>PMT AI Assistant</DialogTitle>
           </div>
           <div className="relative flex-1 flex flex-col min-h-0 overflow-hidden">
-            <AIChatView onClose={() => dispatch(setChatDrawerOpen(false))} />
+            <AIChatView
+              initialWorkspaceId={currentWorkspaceId}
+              onClose={() => dispatch(setChatDrawerOpen(false))}
+            />
           </div>
         </DialogContent>
       </Dialog>

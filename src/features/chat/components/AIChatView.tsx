@@ -90,7 +90,9 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
     fetchWorkspacesApi()
       .then((data) => {
         setWorkspaces(data);
-        if (!selectedWorkspaceId && data.length > 0) {
+        if (initialWorkspaceId && data.some((w) => w.id === initialWorkspaceId)) {
+          setSelectedWorkspaceId(initialWorkspaceId);
+        } else if (!selectedWorkspaceId && data.length > 0) {
           setSelectedWorkspaceId(data[0].id);
         }
       })
@@ -101,12 +103,16 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
     fetchChatSettings()
       .then((data) => setSettings(data))
       .catch(() => {});
-  }, []);
+  }, [initialWorkspaceId]);
 
   // Update selected workspace if prop changes
   useEffect(() => {
-    if (initialWorkspaceId) {
+    if (initialWorkspaceId && initialWorkspaceId !== selectedWorkspaceId) {
       setSelectedWorkspaceId(initialWorkspaceId);
+      setConversationId(undefined);
+      setMessages([]);
+      setActiveConfirmCard(null);
+      setActiveClarification(null);
     }
   }, [initialWorkspaceId]);
 
@@ -125,7 +131,9 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
     if (!selectedWorkspaceId || !conversationId) return;
     fetchConversationHistory(selectedWorkspaceId, conversationId)
       .then((history) => {
-        setMessages(history.messages || []);
+        if (history.messages && history.messages.length > 0) {
+          setMessages(history.messages);
+        }
       })
       .catch((err) => {
         console.error('Failed to load conversation history:', err);
@@ -325,8 +333,6 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
     }
   };
 
-  const currentWorkspace = workspaces.find((w) => w.id === selectedWorkspaceId);
-
   return (
     <div className="flex flex-col flex-1 h-full w-full bg-background border-border overflow-hidden">
       {/* Header Bar */}
@@ -367,28 +373,32 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
 
         {/* Right Header Toolbar */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-          {/* Current Workspace badge if selected, or selector if in standalone mode */}
-          {initialWorkspaceId && currentWorkspace ? (
-            <Badge variant="secondary" className="hidden sm:flex items-center gap-1.5 text-xs font-normal py-1 px-2.5 bg-muted/60">
-              <Building2 className="size-3 text-muted-foreground" />
-              <span className="max-w-[120px] truncate">{currentWorkspace.name}</span>
-            </Badge>
-          ) : (
-            workspaces.length > 1 && (
-              <Select value={selectedWorkspaceId} onValueChange={setSelectedWorkspaceId}>
-                <SelectTrigger className="h-7 sm:h-8 text-xs max-w-[100px] sm:max-w-none sm:w-[150px] px-1.5 sm:px-2 font-medium">
-                  <Building2 className="size-3 text-muted-foreground mr-1 shrink-0" />
-                  <SelectValue placeholder="Workspace" />
-                </SelectTrigger>
-                <SelectContent>
-                  {workspaces.map((ws) => (
-                    <SelectItem key={ws.id} value={ws.id} className="text-xs">
-                      {ws.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )
+          {/* Workspace Selector */}
+          {workspaces.length > 0 && (
+            <Select
+              value={selectedWorkspaceId}
+              onValueChange={(val) => {
+                if (val !== selectedWorkspaceId) {
+                  setSelectedWorkspaceId(val);
+                  setConversationId(undefined);
+                  setMessages([]);
+                  setActiveConfirmCard(null);
+                  setActiveClarification(null);
+                }
+              }}
+            >
+              <SelectTrigger className="h-7 sm:h-8 text-xs max-w-[120px] sm:max-w-none sm:w-[150px] px-1.5 sm:px-2 font-medium">
+                <Building2 className="size-3 text-muted-foreground mr-1 shrink-0" />
+                <SelectValue placeholder="Workspace" />
+              </SelectTrigger>
+              <SelectContent>
+                {workspaces.map((ws) => (
+                  <SelectItem key={ws.id} value={ws.id} className="text-xs">
+                    {ws.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
 
           <Button
