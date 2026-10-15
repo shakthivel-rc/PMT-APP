@@ -31,8 +31,11 @@ export interface UndoAction {
 }
 
 export interface Clarification {
-  question: string;
-  options: string[];
+  question?: string;
+  options?: any[];
+  candidates?: any[];
+  tool_name?: string;
+  raw_args?: Record<string, any>;
   ambiguous_entity?: string;
 }
 
