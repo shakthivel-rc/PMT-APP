@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { ShieldCheck, Shield, Settings2, Plus, KeyRound } from 'lucide-react';
+import { ShieldCheck, Shield, Settings2, Plus, KeyRound, Search } from 'lucide-react';
 import { RoleDefinition, Permission, hasPermission } from '../../../types/index';
 import { useAppSelector } from '@/app/hooks';
 import { revalidateRbacData } from '../../../actions/rbacActions';
@@ -13,6 +13,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePagination } from '@/lib/usePagination';
 import PermissionModal from './PermissionModal';
@@ -81,10 +82,22 @@ const RolesAndPermissionsClient: React.FC = () => {
         };
     }, []);
 
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const filteredPermissions = useMemo(() => {
+        if (!searchQuery.trim()) return permissions;
+        const q = searchQuery.toLowerCase().trim();
+        return permissions.filter(
+            p => p.permission_name.toLowerCase().includes(q) || p.machine_name.toLowerCase().includes(q)
+        );
+    }, [permissions, searchQuery]);
+
     // Two independent paginators on one screen. Both are client-side: RBAC is tens of rows
     // and arrives in a single request.
     const pagedRoles = usePagination(roles, { pageSize: ROLES_PER_PAGE });
-    const pagedPermissions = usePagination(permissions);
+    const pagedPermissions = usePagination(filteredPermissions, {
+        resetKey: searchQuery,
+    });
 
     if (isLoading) {
         return (
@@ -204,17 +217,31 @@ const RolesAndPermissionsClient: React.FC = () => {
 
                 {/* Permissions Column */}
                 <section className="lg:col-span-7" aria-labelledby="permissions-heading">
-                    <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                             <h2 id="permissions-heading" className="text-base font-semibold">All Permissions</h2>
                             <StatusBadge tone="neutral">{permissions.length}</StatusBadge>
                         </div>
-                        {canManagePermissions && (
-                            <Button size="sm" onClick={() => setIsPermModalOpen(true)}>
-                                <Plus className="size-4" aria-hidden="true" />
-                                <span>New Permission</span>
-                            </Button>
-                        )}
+                        <div className="flex items-center gap-2">
+                            {permissions.length > 0 && (
+                                <div className="relative w-44 sm:w-56">
+                                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" aria-hidden="true" />
+                                    <Input
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        placeholder="Search permissions..."
+                                        className="h-8 pl-8 text-xs"
+                                        aria-label="Search permissions"
+                                    />
+                                </div>
+                            )}
+                            {canManagePermissions && (
+                                <Button size="sm" onClick={() => setIsPermModalOpen(true)}>
+                                    <Plus className="size-4" aria-hidden="true" />
+                                    <span>New Permission</span>
+                                </Button>
+                            )}
+                        </div>
                     </div>
 
                     <Card className="py-0">
@@ -228,17 +255,23 @@ const RolesAndPermissionsClient: React.FC = () => {
                                 caption="All permissions with their immutable machine names."
                                 animate={false}
                                 empty={
-                                    <EmptyState
-                                        icon={KeyRound}
-                                        title="No permissions yet"
-                                        description="Create your first permission to start assigning capabilities to roles."
-                                        action={
-                                            <Button size="sm" onClick={() => setIsPermModalOpen(true)}>
-                                                <Plus className="size-4" aria-hidden="true" />
-                                                <span>New Permission</span>
-                                            </Button>
-                                        }
-                                    />
+                                    searchQuery.trim() ? (
+                                        <div className="py-8 text-center text-sm text-muted-foreground">
+                                            No permissions match "{searchQuery}"
+                                        </div>
+                                    ) : (
+                                        <EmptyState
+                                            icon={KeyRound}
+                                            title="No permissions yet"
+                                            description="Create your first permission to start assigning capabilities to roles."
+                                            action={
+                                                <Button size="sm" onClick={() => setIsPermModalOpen(true)}>
+                                                    <Plus className="size-4" aria-hidden="true" />
+                                                    <span>New Permission</span>
+                                                </Button>
+                                            }
+                                        />
+                                    )
                                 }
                                 pagination={{
                                     page: pagedPermissions.page,

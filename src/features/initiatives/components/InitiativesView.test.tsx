@@ -1,4 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { InitiativesView } from './InitiativesView';
 import { initiativesApi } from '@/api/initiatives';
@@ -179,5 +180,105 @@ describe('InitiativesView', () => {
     expect(screen.getByText('FRONT: Web Frontend')).toBeInTheDocument();
     expect(screen.getByText('Linked Epics & Issues (1)')).toBeInTheDocument();
     expect(screen.getByText('Setup Kubernetes manifests')).toBeInTheDocument();
+  });
+
+  it('switches to Initiative Settings tab and updates initiative', async () => {
+    vi.mocked(initiativesApi.listInitiatives).mockResolvedValue({
+      data: mockInitiatives,
+      status: 'success',
+      status_code: 200,
+      message: 'OK',
+    });
+    vi.mocked(initiativesApi.getInitiative).mockResolvedValue({
+      data: mockDetail,
+      status: 'success',
+      status_code: 200,
+      message: 'OK',
+    });
+    vi.mocked(initiativesApi.updateInitiative).mockResolvedValueOnce({
+      data: {
+        ...mockDetail,
+        title: 'Updated Cloud Infrastructure',
+      },
+      status: 'success',
+      status_code: 200,
+      message: 'OK',
+    });
+
+    render(
+      <InitiativesView
+        workspaceId="ws-1"
+        role="admin"
+        spaces={mockSpaces}
+      />
+    );
+
+    const card = await screen.findByText('Modern Cloud Infrastructure');
+    fireEvent.click(card);
+
+    const settingsTab = await screen.findByRole('button', { name: /initiative settings/i });
+    fireEvent.click(settingsTab);
+
+    expect(screen.getByLabelText(/initiative title/i)).toHaveValue('Modern Cloud Infrastructure');
+
+    fireEvent.change(screen.getByLabelText(/initiative title/i), {
+      target: { value: 'Updated Cloud Infrastructure' },
+    });
+
+    const saveButton = screen.getByRole('button', { name: /save settings/i });
+    fireEvent.click(saveButton);
+
+    expect(initiativesApi.updateInitiative).toHaveBeenCalledWith(
+      'ws-1',
+      'init-1',
+      expect.objectContaining({
+        title: 'Updated Cloud Infrastructure',
+      })
+    );
+  });
+
+  it('triggers delete confirmation dialog and deletes initiative', async () => {
+    vi.mocked(initiativesApi.listInitiatives).mockResolvedValue({
+      data: mockInitiatives,
+      status: 'success',
+      status_code: 200,
+      message: 'OK',
+    });
+    vi.mocked(initiativesApi.getInitiative).mockResolvedValue({
+      data: mockDetail,
+      status: 'success',
+      status_code: 200,
+      message: 'OK',
+    });
+    vi.mocked(initiativesApi.deleteInitiative).mockResolvedValueOnce({
+      data: null as any,
+      status: 'success',
+      status_code: 200,
+      message: 'OK',
+    });
+
+    const user = userEvent.setup();
+    render(
+      <InitiativesView
+        workspaceId="ws-1"
+        role="admin"
+        spaces={mockSpaces}
+      />
+    );
+
+    const card = await screen.findByText('Modern Cloud Infrastructure');
+    await user.click(card);
+
+    const deleteBtn = await screen.findByRole('button', { name: /delete initiative/i });
+    await user.click(deleteBtn);
+
+    expect(await screen.findByText('Delete Portfolio Initiative')).toBeInTheDocument();
+
+    const confirmBtn = screen.getByRole('button', { name: 'Delete Initiative' });
+    await user.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(initiativesApi.deleteInitiative).toHaveBeenCalledWith('ws-1', 'init-1');
+    });
   });
 });

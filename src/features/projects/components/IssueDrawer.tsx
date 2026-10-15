@@ -4,7 +4,10 @@ import {
   AppWindow,
   Bot,
   Check,
+  CheckSquare,
   Copy,
+  GitBranch,
+  Link2,
   Loader2,
   Maximize2,
   Milestone,
@@ -18,6 +21,8 @@ import {
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { generateGitCheckoutCommand } from '@/lib/gitBranch';
+import { parseChecklist } from '@/lib/checklist';
 import { aiAgentsApi } from '@/api/aiAgents';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { setTicketViewMode } from '@/features/ui/uiSlice';
@@ -1323,6 +1328,36 @@ const IssuePanel = ({
               variant="ghost"
               size="icon-xs"
               onClick={() => {
+                const cmd = generateGitCheckoutCommand(issue.key, issue.title, issue.type);
+                void navigator.clipboard.writeText(cmd);
+                toast.success(`Copied git branch: ${cmd}`);
+              }}
+              title="Copy git checkout branch command"
+              aria-label="Copy git checkout branch command"
+              className="size-7 border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 shadow-2xs transition-colors"
+            >
+              <GitBranch className="size-3.5" aria-hidden="true" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => {
+                const url = `${window.location.origin}/projects?issue=${issue.key}`;
+                void navigator.clipboard.writeText(url);
+                toast.success(`Copied issue link`);
+              }}
+              title="Copy link to issue"
+              aria-label="Copy link to issue"
+              className="size-7 border border-border bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted shadow-2xs transition-colors"
+            >
+              <Link2 className="size-3.5" aria-hidden="true" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => {
                 void navigator.clipboard.writeText(`${issue.key}: ${issue.title}`);
                 toast.success(`Copied ${issue.key} to clipboard`);
               }}
@@ -1579,6 +1614,35 @@ const IssuePanel = ({
               ) : null
             }
           >
+            {!isEditingDescription && parseChecklist(issue.description) && (
+              <div className="mb-3 rounded-lg border border-border bg-muted/30 p-2.5">
+                {(() => {
+                  const cl = parseChecklist(issue.description)!;
+                  return (
+                    <>
+                      <div className="flex items-center justify-between text-xs font-medium">
+                        <span className="flex items-center gap-1.5 text-foreground">
+                          <CheckSquare className="size-3.5 text-primary" />
+                          <span>Checklist Progress</span>
+                        </span>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {cl.completed} of {cl.total} ({cl.percent}%)
+                        </span>
+                      </div>
+                      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={cn(
+                            'h-full transition-all duration-300 rounded-full',
+                            cl.percent === 100 ? 'bg-emerald-500' : 'bg-primary',
+                          )}
+                          style={{ width: `${cl.percent}%` }}
+                        />
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
             {isEditingDescription ? (
               <div className="space-y-2">
                 <MarkdownEditor

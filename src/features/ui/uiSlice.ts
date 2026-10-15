@@ -61,6 +61,8 @@ export interface UiState {
   ticketViewMode: TicketViewMode;
   chatDrawerOpen: boolean;
   commandPaletteOpen: boolean;
+  quickCreateOpen: boolean;
+  shortcutsCheatsheetOpen: boolean;
 }
 
 const stored = loadThemeSelection();
@@ -77,6 +79,8 @@ const initialState: UiState = {
   ticketViewMode: storedLayout.ticketViewMode,
   chatDrawerOpen: false,
   commandPaletteOpen: false,
+  quickCreateOpen: false,
+  shortcutsCheatsheetOpen: false,
 };
 
 const uiSlice = createSlice({
@@ -170,6 +174,18 @@ const uiSlice = createSlice({
     setCommandPaletteOpen: (state, action: PayloadAction<boolean>) => {
       state.commandPaletteOpen = action.payload;
     },
+    toggleQuickCreate: (state) => {
+      state.quickCreateOpen = !state.quickCreateOpen;
+    },
+    setQuickCreateOpen: (state, action: PayloadAction<boolean>) => {
+      state.quickCreateOpen = action.payload;
+    },
+    toggleShortcutsCheatsheet: (state) => {
+      state.shortcutsCheatsheetOpen = !state.shortcutsCheatsheetOpen;
+    },
+    setShortcutsCheatsheetOpen: (state, action: PayloadAction<boolean>) => {
+      state.shortcutsCheatsheetOpen = action.payload;
+    },
   },
 });
 
@@ -191,5 +207,9 @@ export const {
   setChatDrawerOpen,
   toggleCommandPalette,
   setCommandPaletteOpen,
+  toggleQuickCreate,
+  setQuickCreateOpen,
+  toggleShortcutsCheatsheet,
+  setShortcutsCheatsheetOpen,
 } = uiSlice.actions;
 export default uiSlice.reducer;

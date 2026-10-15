@@ -361,7 +361,7 @@ const authSlice = createSlice({
       })
       .addCase(updateUserProfile.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.error.message || 'Failed to update profile';
+        state.error = (action.payload as string | undefined) || action.error.message || 'Failed to update profile';
       })
       // Request Password Reset
       .addCase(requestPasswordReset.pending, (state) => {
@@ -374,7 +374,7 @@ const authSlice = createSlice({
       })
       .addCase(requestPasswordReset.rejected, (state, action) => {
         state.forgotPasswordStatus = 'failed';
-        state.error = action.error.message || 'Something went wrong';
+        state.error = (action.payload as string | undefined) || action.error.message || 'Something went wrong';
       })
       // Confirm Password Reset
       .addCase(confirmPasswordReset.pending, (state) => {

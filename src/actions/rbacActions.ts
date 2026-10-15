@@ -2,7 +2,7 @@
 import { createPermissionApi, updateRolePermissionsApi, fetchRolesApi, fetchPermissionsApi } from '../api/rbac';
 import { Permission, RoleDefinition, type ActionResponse } from '../types/index';
 
-export async function createPermissionAction(data: { name: string }): Promise<ActionResponse<Permission>> {
+export async function createPermissionAction(data: { name: string; machine_name?: string }): Promise<ActionResponse<Permission>> {
     try {
         const result = await createPermissionApi(data);
         return { success: true, data: result };

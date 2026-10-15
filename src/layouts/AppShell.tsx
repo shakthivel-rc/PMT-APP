@@ -2,7 +2,7 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { logoutUser } from '@/features/auth/authSlice';
-import { toggleFocusMode, toggleSidebar, toggleTree } from '@/features/ui/uiSlice';
+import { toggleSidebar } from '@/features/ui/uiSlice';
 import { BRAND_NAME, titleForPath } from '@/config/nav';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
@@ -12,12 +12,16 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { cn } from '@/lib/utils';
 import { useCommandPalette } from '@/features/command/useCommandPalette';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 const AIChatDrawer = lazyWithRetry(() => import('@/features/chat/components/AIChatDrawer'), 'AIChatDrawer');
 const CommandPalette = lazyWithRetry(() => import('@/features/command/CommandPalette'), 'CommandPalette');
+const QuickCreateModal = lazyWithRetry(() => import('@/features/projects/components/QuickCreateModal'), 'QuickCreateModal');
+const ShortcutsCheatsheetModal = lazyWithRetry(() => import('@/components/ShortcutsCheatsheetModal'), 'ShortcutsCheatsheetModal');
 
 const AppShell = () => {
   useCommandPalette();
+  useKeyboardShortcuts();
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const { user } = useAppSelector((state) => state.auth);
@@ -33,31 +37,6 @@ const AppShell = () => {
   useEffect(() => {
     setMobileOpen(false);
   }, [location.pathname]);
-
-  // Global hotkeys: Shift+F for Focus Mode, [ for primary sidebar, \ for space tree
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement ||
-        (e.target as HTMLElement)?.isContentEditable
-      ) {
-        return;
-      }
-      if (e.shiftKey && (e.key === 'F' || e.key === 'f')) {
-        e.preventDefault();
-        dispatch(toggleFocusMode());
-      } else if (e.key === '[' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        e.preventDefault();
-        dispatch(toggleSidebar());
-      } else if ((e.key === ']' || e.key === '\\') && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        e.preventDefault();
-        dispatch(toggleTree());
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [dispatch]);
 
   /*
    * Navigation used to be completely silent to assistive technology: activating a sidebar
@@ -205,6 +184,14 @@ const AppShell = () => {
 
       <Suspense fallback={null}>
         <CommandPalette />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <QuickCreateModal />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <ShortcutsCheatsheetModal />
       </Suspense>
     </div>
   );

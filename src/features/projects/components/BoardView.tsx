@@ -1,6 +1,7 @@
-import { Fragment, useEffect, useRef, useState, useTransition, type DragEvent, type FormEvent } from 'react';
-import { ChevronDown, Plus } from 'lucide-react';
+import { Fragment, useEffect, useMemo, useRef, useState, useTransition, type DragEvent, type FormEvent } from 'react';
+import { ChevronDown, Plus, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAppSelector } from '@/app/hooks';
 import type { BoardColumn, IssueCard, StatusSummary } from '@/types';
 import { StatusBadge } from '@/components/StatusBadge';
 import UserAvatar from '@/components/UserAvatar';
@@ -14,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { generateGitCheckoutCommand } from '@/lib/gitBranch';
 import { errorMessage, humanize, IssueTypeBadge, PriorityBadge, PullRequestBadge, TimeBadge } from '../presentation';
 
 interface BoardViewProps {
@@ -133,7 +135,22 @@ const IssueCardItem = ({ card, statuses, canWrite, dragging, onDragStart, onDrag
     )}
   >
     <div className="flex items-center justify-between gap-2">
-      <span className="font-mono text-xs font-semibold px-1.5 py-0.5 rounded-sm bg-primary/10 text-primary border border-primary/20">{card.key}</span>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          const cmd = generateGitCheckoutCommand(card.key, card.title, card.type);
+          if (navigator?.clipboard?.writeText) {
+            void navigator.clipboard.writeText(cmd);
+          }
+          toast.success(`Copied git branch: ${cmd}`);
+        }}
+        title="Click to copy git checkout branch command"
+        className="font-mono text-xs font-semibold px-1.5 py-0.5 rounded-sm bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 hover:border-primary/40 transition-colors"
+      >
+        {card.key}
+      </button>
+
       {canWrite && (
         // Drag and drop is pointer-only, so this menu is the keyboard (and switch, and
         // screen-reader) route to the same move. It sends the card to the bottom of the
@@ -220,11 +237,60 @@ const categoryColors = (category: string) => {
  * library would be a new dependency in the bundle.
  */
 const BoardView = ({ columns, canWrite, onMove, onAdd, onOpen }: BoardViewProps) => {
+  const currentUser = useAppSelector((state) => state.auth.user);
+  const currentUserId = currentUser?.id;
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'my' | 'bugs' | 'urgent' | 'blocked'>('all');
   const [dragging, setDragging] = useState<string | null>(null);
   const [marker, setMarker] = useState<{ statusId: string; index: number } | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const refocus = useRef<string | null>(null);
   const statuses = columns.map((column) => column.status);
+
+  const totalCards = useMemo(
+    () => columns.reduce((acc, col) => acc + col.cards.length, 0),
+    [columns]
+  );
+
+  const { filteredColumns, visibleCards } = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+
+    const cols = columns.map((col) => {
+      const matched = col.cards.filter((card) => {
+        if (term) {
+          const matchKey = card.key.toLowerCase().includes(term);
+          const matchTitle = card.title.toLowerCase().includes(term);
+          const matchAssignee = card.assignee?.display_name?.toLowerCase().includes(term);
+          if (!matchKey && !matchTitle && !matchAssignee) return false;
+        }
+
+        if (activeFilter === 'my') {
+          if (!card.assignee) return false;
+          if (currentUserId && card.assignee.id !== currentUserId) {
+            const userName = currentUser?.username || '';
+            const fullName = `${currentUser?.first_name || ''} ${currentUser?.last_name || ''}`.trim();
+            const dName = card.assignee.display_name.toLowerCase();
+            if (!dName.includes(userName.toLowerCase()) && !dName.includes(fullName.toLowerCase())) {
+              return false;
+            }
+          }
+        } else if (activeFilter === 'bugs') {
+          if (card.type !== 'bug') return false;
+        } else if (activeFilter === 'urgent') {
+          if (card.priority !== 'urgent' && card.priority !== 'high') return false;
+        } else if (activeFilter === 'blocked') {
+          if (!card.blocked) return false;
+        }
+
+        return true;
+      });
+
+      return { ...col, cards: matched };
+    });
+
+    const visible = cols.reduce((acc, col) => acc + col.cards.length, 0);
+    return { filteredColumns: cols, visibleCards: visible };
+  }, [columns, searchTerm, activeFilter, currentUserId, currentUser]);
 
   // A card moved from the menu is re-created in its new column, so the menu's trigger — where
   // focus would return — no longer exists and focus would fall to <body>. Put it on the same
@@ -268,11 +334,110 @@ const BoardView = ({ columns, canWrite, onMove, onAdd, onOpen }: BoardViewProps)
   };
 
   return (
-    <div className="flex min-h-[480px] lg:min-h-0 flex-1 w-full max-w-full gap-4 overflow-x-auto pb-4">
-      <p role="status" className="sr-only">
-        {announcement}
-      </p>
-      {columns.map(({ status, cards }) => {
+    <div className="flex flex-col flex-1 min-h-0 w-full max-w-full gap-3 overflow-hidden">
+      {/* Instant Board Search & Quick Filter Chips Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 px-0.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          {/* Quick Search Box */}
+          <div className="relative w-44 sm:w-56">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Filter board..."
+              className="h-8 pl-8 pr-7 text-xs bg-card/60"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Clear search"
+              >
+                <X className="size-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Filter Chips */}
+          <div className="flex items-center gap-1 overflow-x-auto">
+            <Button
+              type="button"
+              variant={activeFilter === 'all' ? 'default' : 'outline'}
+              size="xs"
+              onClick={() => setActiveFilter('all')}
+              className="h-7 text-xs rounded-full px-2.5 font-medium"
+            >
+              All
+            </Button>
+            <Button
+              type="button"
+              variant={activeFilter === 'my' ? 'default' : 'outline'}
+              size="xs"
+              onClick={() => setActiveFilter('my')}
+              className="h-7 text-xs rounded-full px-2.5 font-medium"
+            >
+              My Issues
+            </Button>
+            <Button
+              type="button"
+              variant={activeFilter === 'bugs' ? 'default' : 'outline'}
+              size="xs"
+              onClick={() => setActiveFilter('bugs')}
+              className="h-7 text-xs rounded-full px-2.5 font-medium"
+            >
+              Bugs
+            </Button>
+            <Button
+              type="button"
+              variant={activeFilter === 'urgent' ? 'default' : 'outline'}
+              size="xs"
+              onClick={() => setActiveFilter('urgent')}
+              className="h-7 text-xs rounded-full px-2.5 font-medium"
+            >
+              Urgent & High
+            </Button>
+            <Button
+              type="button"
+              variant={activeFilter === 'blocked' ? 'default' : 'outline'}
+              size="xs"
+              onClick={() => setActiveFilter('blocked')}
+              className="h-7 text-xs rounded-full px-2.5 font-medium"
+            >
+              Blocked
+            </Button>
+          </div>
+        </div>
+
+        {/* Filter stats & Reset */}
+        {(searchTerm || activeFilter !== 'all') && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>
+              Showing <strong className="text-foreground">{visibleCards}</strong> of {totalCards}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={() => {
+                setSearchTerm('');
+                setActiveFilter('all');
+              }}
+              className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Reset
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Board Columns */}
+      <div className="flex min-h-[480px] lg:min-h-0 flex-1 w-full max-w-full gap-4 overflow-x-auto pb-4">
+        <p role="status" className="sr-only">
+          {announcement}
+        </p>
+        {filteredColumns.map(({ status, cards }) => {
         const markerAt = marker?.statusId === status.id ? marker.index : -1;
         const colors = categoryColors(status.category);
         return (
@@ -330,6 +495,7 @@ const BoardView = ({ columns, canWrite, onMove, onAdd, onOpen }: BoardViewProps)
           </section>
         );
       })}
+      </div>
     </div>
   );
 };

@@ -30,6 +30,24 @@ Protected screens render inside `AppShell`; public auth screens render inside `A
 
 > **Sprints UI**: Accessed directly from the project board toolbar. Opens as a centered, standard XXL modal dialog (`sm:max-w-2xl h-[85vh]`) featuring real-time story point progress bars, KPI metric cards, state filter tabs (All, Active, Planned, Closed), backlog issue candidate selector, and sprint activity timeline.
 
+### 2026 Productivity & Developer Ergonomics
+
+- **Universal Keyboard Shortcuts & Chords**: Press `?` anywhere to bring up the visual shortcut cheatsheet. Includes Linear-style navigation chords:
+  - `G D` &rarr; Dashboard / Home
+  - `G P` &rarr; Projects & Workspaces
+  - `G T` &rarr; Timesheets
+  - `G R` &rarr; Reports
+  - `G A` &rarr; Activity Log
+  - `G C` &rarr; AI Assistant Chat
+  - `C` &rarr; Global Quick-Create Issue Modal
+  - `Cmd+K` / `Ctrl+K` &rarr; Command Palette
+  - `/` &rarr; Instant Board Search
+- **Global Quick-Create Issue (`C`)**: Modal accessible from any screen with workspace, space, and list selector, markdown preview, story points, priority, and `Cmd+Enter` instant creation.
+- **In-App Notification Center**: Real-time unread badge counter in the top header bar with popover feed, All / Unread tabs, relative time-ago timestamps, and mark-all-as-read. Automatically receives alerts on ticket assignment and status transitions.
+- **Developer Git Workflow**: 1-click `git checkout -b feature/KEY-slug` command copy directly from board card keys and issue drawer.
+- **Markdown Checklist Progress**: Automatically parses `- [ ]` and `- [x]` items in issue descriptions and displays dynamic visual checklist completion chips (e.g. `✓ 2/4`) on Kanban cards and drawers.
+- **Instant Board Fuzzy Search & Quick Filter Chips**: Real-time client-side board search (`/`) with instant filter chips (`All`, `My Issues`, `Bugs`, `Urgent & High`, `Blocked`) and match statistics.
+
 ## Stack
 
 React 19.2 · Vite 6.4 · TypeScript 5.8 · Redux Toolkit 2.6 · React Router 7 ·
@@ -97,7 +115,7 @@ Copy `.env.example` to `.env.local` and fill it in. Only `VITE_API_BASE_URL` is 
 
 ```
 src/
-  api/          fetch wrapper + per-domain modules (client, users, rbac, activityLogs, workspaces, issues, reports, sprints, chat)
+  api/          fetch wrapper + per-domain modules (client, users, rbac, activityLogs, workspaces, issues, notifications, reports, sprints, chat)
   app/          store.ts (4 reducers: auth, users, ui, timer), typed hooks
   components/   shared components + ui/ (shadcn primitives)
   config/       nav.tsx — single source for nav items and header titles

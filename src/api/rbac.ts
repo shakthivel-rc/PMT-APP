@@ -44,10 +44,14 @@ export async function fetchRolesApi(): Promise<RoleDefinition[]> {
   );
 }
 
-export async function createPermissionApi(permission: { name: string }): Promise<Permission> {
-  const res = await api.post<any>('/permissions', {
+export async function createPermissionApi(permission: { name: string; machine_name?: string }): Promise<Permission> {
+  const payload: Record<string, any> = {
     permission_name: permission.name,
-  });
+  };
+  if (permission.machine_name && permission.machine_name.trim()) {
+    payload.machine_name = permission.machine_name.trim();
+  }
+  const res = await api.post<any>('/permissions', payload);
   return {
     id: res.data.permission_id || res.data.id,
     permission_name: res.data.permission_name || permission.name,

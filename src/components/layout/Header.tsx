@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Maximize2, Menu, Minimize2, Search, Sparkles, UserRound } from 'lucide-react';
+import { LogOut, Maximize2, Menu, Minimize2, Plus, Search, Sparkles, UserRound } from 'lucide-react';
 import { type User, getDisplayName, getUserRoleName } from '@/types/index';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
-import { setCommandPaletteOpen, toggleChatDrawer, toggleFocusMode } from '@/features/ui/uiSlice';
+import { setCommandPaletteOpen, setQuickCreateOpen, toggleChatDrawer, toggleFocusMode } from '@/features/ui/uiSlice';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -15,6 +15,7 @@ import {
 import UserAvatar from '@/components/UserAvatar';
 import ThemeToggle from '@/components/ThemeToggle';
 import TimerIndicator from '@/components/TimerIndicator';
+import NotificationCenter from '@/components/NotificationCenter';
 import { cn } from '@/lib/utils';
 
 interface HeaderProps {
@@ -55,6 +56,22 @@ const Header = ({ title, user, onOpenSidebar, onLogout }: HeaderProps) => {
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* Quick New Issue button */}
+        <Button
+          variant="default"
+          size="sm"
+          onClick={() => dispatch(setQuickCreateOpen(true))}
+          title="New Issue (C)"
+          aria-label="Create new issue"
+          className="h-9 gap-1.5 px-2.5 sm:px-3 text-xs font-semibold shadow-xs"
+        >
+          <Plus className="size-3.5" />
+          <span className="hidden sm:inline">New Issue</span>
+          <kbd className="pointer-events-none hidden h-4 select-none items-center rounded border border-primary-foreground/30 bg-primary-foreground/15 px-1 font-mono text-[10px] font-medium sm:inline-flex">
+            C
+          </kbd>
+        </Button>
+
         {/* Command Palette button */}
         <Button
           variant="outline"
@@ -107,6 +124,8 @@ const Header = ({ title, user, onOpenSidebar, onLogout }: HeaderProps) => {
           <Sparkles className="size-3.5" />
           <span className="hidden sm:inline">AI Assistant</span>
         </Button>
+
+        <NotificationCenter />
 
         <ThemeToggle />
 

@@ -10,6 +10,10 @@ import uiReducer, {
   toggleTree,
   toggleFocusMode,
   setTicketViewMode,
+  setQuickCreateOpen,
+  toggleQuickCreate,
+  setShortcutsCheatsheetOpen,
+  toggleShortcutsCheatsheet,
   type Notification,
   type UiState,
 } from '@/features/ui/uiSlice';
@@ -27,6 +31,8 @@ const baseState = (over: Partial<UiState> = {}): UiState => ({
   ticketViewMode: 'drawer',
   chatDrawerOpen: false,
   commandPaletteOpen: false,
+  quickCreateOpen: false,
+  shortcutsCheatsheetOpen: false,
   ...over,
 });
 
@@ -130,5 +136,19 @@ describe('uiSlice layout reducers', () => {
   it('setTicketViewMode sets and persists ticket inspection mode', () => {
     const s1 = uiReducer(baseState(), setTicketViewMode('split'));
     expect(s1.ticketViewMode).toBe('split');
+  });
+
+  it('manages quickCreateOpen and shortcutsCheatsheetOpen states', () => {
+    const s1 = uiReducer(baseState(), toggleQuickCreate());
+    expect(s1.quickCreateOpen).toBe(true);
+
+    const s2 = uiReducer(s1, setQuickCreateOpen(false));
+    expect(s2.quickCreateOpen).toBe(false);
+
+    const s3 = uiReducer(baseState(), toggleShortcutsCheatsheet());
+    expect(s3.shortcutsCheatsheetOpen).toBe(true);
+
+    const s4 = uiReducer(s3, setShortcutsCheatsheetOpen(false));
+    expect(s4.shortcutsCheatsheetOpen).toBe(false);
   });
 });
