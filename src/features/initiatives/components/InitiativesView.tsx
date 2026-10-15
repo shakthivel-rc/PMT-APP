@@ -213,8 +213,8 @@ export const InitiativesView: React.FC<InitiativesViewProps> = ({ workspaceId, r
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="relative w-48 sm:w-60">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-60 sm:flex-initial">
             <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
             <Input
               placeholder="Filter initiatives..."

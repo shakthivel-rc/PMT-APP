@@ -452,12 +452,13 @@ export const StorageSection = ({ workspaceId, manage }: StorageSectionProps) => 
 
             {/* Action Buttons */}
             {manage && (
-              <div className="flex items-center justify-between border-t pt-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t pt-4">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleTestConnection}
                   disabled={testing || saving}
+                  className="w-full sm:w-auto"
                 >
                   {testing ? (
                     <>
@@ -472,7 +473,7 @@ export const StorageSection = ({ workspaceId, manage }: StorageSectionProps) => 
                   )}
                 </Button>
 
-                <Button type="submit" disabled={saving || testing}>
+                <Button type="submit" disabled={saving || testing} className="w-full sm:w-auto">
                   {saving ? (
                     <>
                       <Loader2 className="mr-2 size-4 animate-spin" />

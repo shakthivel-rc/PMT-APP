@@ -11,7 +11,7 @@ interface UndoCardViewProps {
 
 export const UndoCardView = ({ action, onUndo, disabled = false }: UndoCardViewProps) => {
   return (
-    <div className="my-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl border border-primary/25 bg-primary/5 p-3 text-xs text-foreground">
+    <div className="my-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl border border-primary/25 bg-primary/5 p-3 text-xs text-foreground w-full max-w-full min-w-0 overflow-hidden">
       <div className="flex items-center gap-2 min-w-0">
         <Badge variant="outline" className="text-[10px] uppercase font-bold shrink-0 border-primary/40 text-primary bg-primary/10">
           T1 Reversible

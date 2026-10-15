@@ -1178,6 +1178,8 @@
 
   html {
     -webkit-text-size-adjust: 100%;
+    overflow-x: hidden;
+    max-width: 100%;
   }
 
   body {
@@ -1185,6 +1187,8 @@
     font-feature-settings: "cv11", "ss01";
     font-variation-settings: normal;
     min-height: 100vh;
+    overflow-x: hidden;
+    max-width: 100%;
   }
 
   /* Keyboard focus only — never on mouse click */

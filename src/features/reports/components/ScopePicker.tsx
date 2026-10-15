@@ -72,11 +72,11 @@ export function ScopePicker({ tree, scope, onScope, sprints, sprintId, onSprint,
   const sprintSpace = needsSprints ? spaceOfScope(tree, scope) : null;
 
   return (
-    <div className="flex flex-wrap items-end gap-3">
-      <div className="grid gap-1.5">
+    <div className="flex flex-wrap items-end gap-3 w-full sm:w-auto">
+      <div className="grid gap-1.5 w-full sm:w-auto">
         <Label htmlFor="report-scope">Scope</Label>
         <Select value={known ? scope : WORKSPACE_SCOPE} onValueChange={onScope}>
-          <SelectTrigger id="report-scope" className="w-64" aria-label="Scope">
+          <SelectTrigger id="report-scope" className="w-full sm:w-64" aria-label="Scope">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -91,14 +91,14 @@ export function ScopePicker({ tree, scope, onScope, sprints, sprintId, onSprint,
         </Select>
       </div>
       {needsSprints && onSprint && (
-        <div className="grid gap-1.5">
+        <div className="grid gap-1.5 w-full sm:w-auto">
           <Label htmlFor="report-sprint">Sprint</Label>
           <Select
             value={sprintId ?? LATEST}
             onValueChange={(value) => onSprint(value === LATEST ? null : value)}
             disabled={!sprintSpace}
           >
-            <SelectTrigger id="report-sprint" className="w-56" aria-label="Sprint">
+            <SelectTrigger id="report-sprint" className="w-full sm:w-56" aria-label="Sprint">
               <SelectValue placeholder={sprintSpace ? 'Choose a sprint' : 'Choose a project first'} />
             </SelectTrigger>
             <SelectContent>

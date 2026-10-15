@@ -4,6 +4,8 @@ import { ChevronLeft, Folder, Layers, Loader2, Plus, Settings } from 'lucide-rea
 import { toast } from 'sonner';
 import { createListApi, createSpaceApi } from '@/api/workspaces';
 import { canManageWorkspace, type FolderNode, type ListNode, type SpaceNode, type WorkspaceTree } from '@/types';
+import { useAppDispatch } from '@/app/hooks';
+import { setTreeCollapsed } from '@/features/ui/uiSlice';
 import { spaceHref } from './SpaceView';
 import FormMessage from '@/components/FormMessage';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -180,7 +182,15 @@ const HierarchyPanel = ({
   const [target, setTarget] = useState<CreateTarget | null>(null);
   const [opened, setOpened] = useState(0);
   const [params] = useSearchParams();
+  const dispatch = useAppDispatch();
   const manage = canManageWorkspace(tree.role);
+
+  const handleNavClick = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      dispatch(setTreeCollapsed(true));
+    }
+  };
+
   // Carry the view choice across lists: someone reading lists as tables wants the next one
   // as a table too.
   const search = params.get('view') === 'list' ? '?view=list' : '';
@@ -194,6 +204,7 @@ const HierarchyPanel = ({
     <li key={list.id}>
       <NavLink
         to={`/projects/${tree.id}/lists/${list.id}${search}`}
+        onClick={handleNavClick}
         className={cn(
           'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
           list.id === activeListId
@@ -242,7 +253,7 @@ const HierarchyPanel = ({
                 activeSection === 'settings' && 'text-primary bg-accent',
               )}
             >
-              <Link to={`/projects/${tree.id}/settings`}>
+              <Link to={`/projects/${tree.id}/settings`} onClick={handleNavClick}>
                 <Settings className="size-3.5" aria-hidden="true" />
               </Link>
             </Button>
@@ -252,6 +263,7 @@ const HierarchyPanel = ({
         <div className="mt-2 space-y-1">
           <NavLink
             to={`/projects/${tree.id}/settings`}
+            onClick={handleNavClick}
             className={cn(
               'flex items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
               activeSection === 'settings'
@@ -264,6 +276,7 @@ const HierarchyPanel = ({
           </NavLink>
           <NavLink
             to={`/projects/${tree.id}/initiatives`}
+            onClick={handleNavClick}
             className={cn(
               'flex items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
               activeSection === 'initiatives'
@@ -287,6 +300,7 @@ const HierarchyPanel = ({
               <h2 className="flex-1 min-w-0 truncate text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 <Link
                   to={spaceHref(tree.id, space.id)}
+                  onClick={handleNavClick}
                   className={cn(
                     'truncate hover:text-foreground transition-colors',
                     isCurrentSpace && !activeSpaceTab && 'text-foreground font-bold',
@@ -308,7 +322,7 @@ const HierarchyPanel = ({
                     isSettingsActive && 'text-primary bg-accent',
                   )}
                 >
-                  <Link to={spaceHref(tree.id, space.id, 'settings')}>
+                  <Link to={spaceHref(tree.id, space.id, 'settings')} onClick={handleNavClick}>
                     <Settings className="size-3.5" aria-hidden="true" />
                   </Link>
                 </Button>

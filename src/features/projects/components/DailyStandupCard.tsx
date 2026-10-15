@@ -27,6 +27,7 @@ export const DailyStandupCard = ({ workspaceId }: DailyStandupCardProps) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [briefingOpen, setBriefingOpen] = useState(true);
   const [expandedMembers, setExpandedMembers] = useState<Record<string, boolean>>({});
 
   const loadStandup = async () => {
@@ -88,14 +89,14 @@ export const DailyStandupCard = ({ workspaceId }: DailyStandupCardProps) => {
   return (
     <div className="rounded-xl border bg-card p-4 shadow-2xs mb-6 transition-all duration-200">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b">
-        <div className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+      <div className={cn("flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3", briefingOpen && "pb-3 border-b")}>
+        <div className="flex items-start sm:items-center gap-2.5 min-w-0 flex-1">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Sparkles className="size-4.5" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-foreground">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-sm font-semibold text-foreground break-words">
                 Autonomous Daily Standup & Trajectory Forecast
               </h3>
               {forecast && (
@@ -104,8 +105,8 @@ export const DailyStandupCard = ({ workspaceId }: DailyStandupCardProps) => {
                 </StatusBadge>
               )}
             </div>
-            <p className="text-2xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-              <Calendar className="size-3" />
+            <p className="text-2xs text-muted-foreground flex flex-wrap items-center gap-1.5 mt-0.5">
+              <Calendar className="size-3 shrink-0" />
               <span>{standup.standup_date}</span>
               <span>·</span>
               <span>{standup.team_updates.length} active contributors</span>
@@ -113,7 +114,7 @@ export const DailyStandupCard = ({ workspaceId }: DailyStandupCardProps) => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 shrink-0 self-start sm:self-auto">
           <Button
             size="xs"
             variant="outline"
@@ -132,22 +133,41 @@ export const DailyStandupCard = ({ workspaceId }: DailyStandupCardProps) => {
           <Button
             size="xs"
             variant="ghost"
-            onClick={() => setExpanded(!expanded)}
+            onClick={() => setBriefingOpen(!briefingOpen)}
             className="text-2xs h-7"
+            aria-label={briefingOpen ? 'Minimize standup briefing' : 'Expand standup briefing'}
           >
-            {expanded ? 'Collapse Details' : 'View Member Updates'}
-            {expanded ? (
+            {briefingOpen ? 'Minimize' : 'Briefing'}
+            {briefingOpen ? (
               <ChevronDown className="size-3 ml-1" />
             ) : (
               <ChevronRight className="size-3 ml-1" />
             )}
           </Button>
+
+          {briefingOpen && (
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={() => setExpanded(!expanded)}
+              className="text-2xs h-7"
+            >
+              {expanded ? 'Collapse Details' : 'View Member Updates'}
+              {expanded ? (
+                <ChevronDown className="size-3 ml-1" />
+              ) : (
+                <ChevronRight className="size-3 ml-1" />
+              )}
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Summary Narrative */}
+      {briefingOpen && (
+        <>
+          {/* Summary Narrative */}
       <div className="pt-3">
-        <p className="text-xs text-muted-foreground leading-relaxed">
+        <p className="text-xs text-muted-foreground leading-relaxed break-words">
           {standup.summary}
         </p>
       </div>
@@ -155,49 +175,49 @@ export const DailyStandupCard = ({ workspaceId }: DailyStandupCardProps) => {
       {/* Sprint Velocity Forecast Metrics */}
       {forecast && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-3">
-          <div className="rounded-lg border bg-muted/20 p-2.5 space-y-1">
-            <span className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <div className="rounded-lg border bg-muted/20 p-2.5 space-y-1 min-w-0 overflow-hidden">
+            <span className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider block truncate">
               Active Sprint
             </span>
             <div className="text-xs font-bold text-foreground truncate">
               {forecast.active_sprint_name || 'Current Sprint'}
             </div>
-            <p className="text-3xs text-muted-foreground">
+            <p className="text-3xs text-muted-foreground truncate">
               {forecast.working_days_left} working days remaining
             </p>
           </div>
 
-          <div className="rounded-lg border bg-muted/20 p-2.5 space-y-1">
-            <span className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <div className="rounded-lg border bg-muted/20 p-2.5 space-y-1 min-w-0 overflow-hidden">
+            <span className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider block truncate">
               Remaining Points
             </span>
-            <div className="text-xs font-bold text-foreground">
+            <div className="text-xs font-bold text-foreground truncate">
               {forecast.remaining_points} pts
             </div>
-            <p className="text-3xs text-muted-foreground">
+            <p className="text-3xs text-muted-foreground truncate">
               Required: {forecast.required_rate} pts/day
             </p>
           </div>
 
-          <div className="rounded-lg border bg-muted/20 p-2.5 space-y-1">
-            <span className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <div className="rounded-lg border bg-muted/20 p-2.5 space-y-1 min-w-0 overflow-hidden">
+            <span className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider block truncate">
               Burn Rate
             </span>
-            <div className="text-xs font-bold text-foreground flex items-center gap-1">
-              <Flame className="size-3 text-amber-500" />
-              <span>{forecast.current_burn_rate} pts/day</span>
+            <div className="text-xs font-bold text-foreground flex items-center gap-1 truncate">
+              <Flame className="size-3 text-amber-500 shrink-0" />
+              <span className="truncate">{forecast.current_burn_rate} pts/day</span>
             </div>
-            <p className="text-3xs text-muted-foreground">Historical pace</p>
+            <p className="text-3xs text-muted-foreground truncate">Historical pace</p>
           </div>
 
-          <div className="rounded-lg border bg-muted/20 p-2.5 space-y-1">
-            <span className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <div className="rounded-lg border bg-muted/20 p-2.5 space-y-1 min-w-0 overflow-hidden">
+            <span className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider block truncate">
               Carryover Risk
             </span>
-            <div className={cn('text-xs font-bold', forecast.carryover_risk ? 'text-danger' : 'text-success')}>
+            <div className={cn('text-xs font-bold truncate', forecast.carryover_risk ? 'text-danger' : 'text-success')}>
               {forecast.carryover_risk ? `${forecast.projected_carryover_pct}% Risk` : 'Minimal'}
             </div>
-            <p className="text-3xs text-muted-foreground">
+            <p className="text-3xs text-muted-foreground truncate">
               {forecast.carryover_risk ? 'Points projected to slip' : 'On track for delivery'}
             </p>
           </div>
@@ -302,6 +322,8 @@ export const DailyStandupCard = ({ workspaceId }: DailyStandupCardProps) => {
             </div>
           )}
         </div>
+      )}
+        </>
       )}
     </div>
   );

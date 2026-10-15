@@ -20,7 +20,7 @@ export const AIChatDrawer: React.FC = () => {
           onClick={() => dispatch(toggleChatDrawer())}
           title="Open AI Chat Assistant"
           aria-label="Open AI Chat Assistant"
-          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-200 hover:scale-105 hover:shadow-xl hover:shadow-primary/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 flex items-center gap-2 rounded-full bg-primary px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-200 hover:scale-105 hover:shadow-xl hover:shadow-primary/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
         >
           <Sparkles className="size-4 animate-pulse" />
           <span className="hidden sm:inline">AI Assistant</span>
@@ -31,7 +31,7 @@ export const AIChatDrawer: React.FC = () => {
       <Dialog open={isOpen} onOpenChange={(open) => dispatch(setChatDrawerOpen(open))}>
         <DialogContent
           showCloseButton={false}
-          className="w-[95vw] sm:max-w-3xl md:max-w-4xl lg:max-w-5xl h-[85vh] max-h-[850px] p-0 border border-border bg-background shadow-2xl rounded-2xl flex flex-col z-50 overflow-hidden"
+          className="w-[96vw] max-w-[96vw] sm:max-w-3xl md:max-w-4xl lg:max-w-5xl h-[90vh] sm:h-[85vh] max-h-[850px] p-0 border border-border bg-background shadow-2xl rounded-2xl flex flex-col z-50 overflow-hidden"
         >
           <div className="sr-only">
             <DialogTitle>PMT AI Assistant</DialogTitle>

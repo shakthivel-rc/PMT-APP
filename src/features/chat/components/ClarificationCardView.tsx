@@ -14,7 +14,7 @@ export const ClarificationCardView = ({
   disabled = false,
 }: ClarificationCardViewProps) => {
   return (
-    <div className="my-3 rounded-xl border border-primary/25 bg-muted/40 p-3.5 text-xs text-foreground shadow-2xs">
+    <div className="my-3 rounded-xl border border-primary/25 bg-muted/40 p-3 sm:p-3.5 text-xs text-foreground shadow-2xs w-full max-w-full min-w-0 overflow-hidden break-words">
       <div className="flex items-center gap-1.5 font-semibold text-xs text-primary mb-1.5">
         <HelpCircle className="size-4 shrink-0" />
         <span>Clarification Needed</span>

@@ -374,7 +374,7 @@ export const WorkflowEditor = ({ workspaceId, space, role: _role, onPublished }:
   const stageNames = draft.stages.map((s) => s.name);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 pb-24 sm:pb-8">
       {/* Top Banner / Actions */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card p-4 shadow-xs">
         <div>
@@ -399,7 +399,7 @@ export const WorkflowEditor = ({ workspaceId, space, role: _role, onPublished }:
                   <ChevronDown className="size-3.5" aria-hidden="true" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm">
                 <DropdownMenuLabel>Workflow Templates</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {templates.map((tmpl) => (
@@ -453,11 +453,11 @@ export const WorkflowEditor = ({ workspaceId, space, role: _role, onPublished }:
       {previewError && <FormMessage>{previewError}</FormMessage>}
 
       {/* Navigation sub-tabs */}
-      <div className="flex border-b border-border">
+      <div className="flex overflow-x-auto border-b border-border">
         <button
           type="button"
           onClick={() => setActiveSubTab('stages')}
-          className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+          className={`flex shrink-0 whitespace-nowrap items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
             activeSubTab === 'stages'
               ? 'border-primary text-foreground'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -469,7 +469,7 @@ export const WorkflowEditor = ({ workspaceId, space, role: _role, onPublished }:
         <button
           type="button"
           onClick={() => setActiveSubTab('transitions')}
-          className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+          className={`flex shrink-0 whitespace-nowrap items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
             activeSubTab === 'transitions'
               ? 'border-primary text-foreground'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -481,7 +481,7 @@ export const WorkflowEditor = ({ workspaceId, space, role: _role, onPublished }:
         <button
           type="button"
           onClick={() => setActiveSubTab('policy')}
-          className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+          className={`flex shrink-0 whitespace-nowrap items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
             activeSubTab === 'policy'
               ? 'border-primary text-foreground'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -495,7 +495,7 @@ export const WorkflowEditor = ({ workspaceId, space, role: _role, onPublished }:
       {/* TAB 1: STAGES */}
       {activeSubTab === 'stages' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">
               Stages define the columns displayed on board views in left-to-right order. Drag or use arrows to reorder.
             </p>
@@ -503,6 +503,7 @@ export const WorkflowEditor = ({ workspaceId, space, role: _role, onPublished }:
               <Button
                 variant="outline"
                 size="sm"
+                className="w-full sm:w-auto shrink-0"
                 onClick={() => {
                   setEditingStage(null);
                   setStageFormOpen(true);
@@ -528,70 +529,72 @@ export const WorkflowEditor = ({ workspaceId, space, role: _role, onPublished }:
                   onDragStart={() => handleDragStart(index)}
                   onDragOver={handleDragOver}
                   onDrop={() => handleDrop(index)}
-                  className={`flex items-center gap-3 rounded-lg border bg-card p-3 shadow-2xs transition-all ${
+                  className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border bg-card p-3 shadow-2xs transition-all ${
                     draggedIndex === index ? 'opacity-40' : ''
                   } ${hasProblem ? 'border-danger' : 'border-border'}`}
                 >
-                  {/* Drag Handle */}
-                  {canEdit && (
-                    <div className="cursor-grab text-muted-foreground hover:text-foreground active:cursor-grabbing">
-                      <GripVertical className="size-4" aria-hidden="true" />
-                    </div>
-                  )}
-
-                  {/* Order & Reorder arrows */}
-                  <div className="flex items-center gap-0.5">
-                    <span className="font-mono text-xs font-semibold text-muted-foreground w-5 text-center">
-                      {index + 1}
-                    </span>
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    {/* Drag Handle */}
                     {canEdit && (
-                      <div className="flex flex-col">
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          disabled={index === 0}
-                          onClick={() => handleMoveStage(index, -1)}
-                          aria-label={`Move ${stage.name} up`}
-                        >
-                          <ArrowUp className="size-3" aria-hidden="true" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          disabled={index === draft.stages.length - 1}
-                          onClick={() => handleMoveStage(index, 1)}
-                          aria-label={`Move ${stage.name} down`}
-                        >
-                          <ArrowDown className="size-3" aria-hidden="true" />
-                        </Button>
+                      <div className="cursor-grab text-muted-foreground hover:text-foreground active:cursor-grabbing shrink-0">
+                        <GripVertical className="size-4" aria-hidden="true" />
                       </div>
                     )}
-                  </div>
 
-                  {/* Stage Badge & Name */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold text-sm">{stage.name}</span>
-                      <StatusBadge tone={(stage.color as StageColor) || 'neutral'}>
-                        {categoryLabel(stage.category)}
-                      </StatusBadge>
-                      {isInitial && (
-                        <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-                          <Star className="size-3 fill-primary" aria-hidden="true" /> Initial
-                        </span>
-                      )}
-                      {stage.wip_limit && (
-                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                          WIP Limit: {stage.wip_limit}
-                        </span>
+                    {/* Order & Reorder arrows */}
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <span className="font-mono text-xs font-semibold text-muted-foreground w-5 text-center">
+                        {index + 1}
+                      </span>
+                      {canEdit && (
+                        <div className="flex flex-col">
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            disabled={index === 0}
+                            onClick={() => handleMoveStage(index, -1)}
+                            aria-label={`Move ${stage.name} up`}
+                          >
+                            <ArrowUp className="size-3" aria-hidden="true" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            disabled={index === draft.stages.length - 1}
+                            onClick={() => handleMoveStage(index, 1)}
+                            aria-label={`Move ${stage.name} down`}
+                          >
+                            <ArrowDown className="size-3" aria-hidden="true" />
+                          </Button>
+                        </div>
                       )}
                     </div>
-                    {liveStageData(liveData)}
+
+                    {/* Stage Badge & Name */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-sm">{stage.name}</span>
+                        <StatusBadge tone={(stage.color as StageColor) || 'neutral'}>
+                          {categoryLabel(stage.category)}
+                        </StatusBadge>
+                        {isInitial && (
+                          <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                            <Star className="size-3 fill-primary" aria-hidden="true" /> Initial
+                          </span>
+                        )}
+                        {stage.wip_limit && (
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                            WIP Limit: {stage.wip_limit}
+                          </span>
+                        )}
+                      </div>
+                      {liveStageData(liveData)}
+                    </div>
                   </div>
 
                   {/* Actions */}
                   {canEdit && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 self-end sm:self-center shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 w-full sm:w-auto justify-end">
                       {/* Set as initial */}
                       {!isInitial && stage.category !== 'done' && stage.category !== 'canceled' && (
                         <Button
@@ -601,7 +604,7 @@ export const WorkflowEditor = ({ workspaceId, space, role: _role, onPublished }:
                           onClick={() => updateDraft((d) => ({ ...d, initial: stage.ref }))}
                           title="Set as initial stage for new issues"
                         >
-                          <Star className="size-3.5" aria-hidden="true" />
+                          <Star className="size-3.5 mr-1" aria-hidden="true" />
                           Make initial
                         </Button>
                       )}

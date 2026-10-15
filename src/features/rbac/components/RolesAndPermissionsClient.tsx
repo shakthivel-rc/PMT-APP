@@ -131,12 +131,12 @@ const RolesAndPermissionsClient: React.FC = () => {
                                     <Card className="gap-4 py-4 transition-shadow hover:shadow-md">
                                         <CardContent className="px-4">
                                             <div className="flex items-start justify-between gap-3">
-                                                <div className="flex items-center gap-2.5">
+                                                <div className="flex items-center gap-2.5 min-w-0">
                                                     <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary">
                                                         <Shield className="size-5" aria-hidden="true" />
                                                     </span>
-                                                    <div>
-                                                        <p className="font-semibold leading-tight">{role.name}</p>
+                                                    <div className="min-w-0">
+                                                        <p className="font-semibold leading-tight truncate">{role.name}</p>
                                                         <p className="text-xs text-muted-foreground">
                                                             {role.permissions.length} permission{role.permissions.length === 1 ? '' : 's'}
                                                         </p>

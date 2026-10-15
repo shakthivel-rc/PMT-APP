@@ -135,7 +135,7 @@ const AppShell = () => {
         </SheetContent>
       </Sheet>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col w-full max-w-full overflow-hidden">
         <Header
           title={title}
           user={user}
@@ -145,7 +145,7 @@ const AppShell = () => {
 
         {/* tabIndex={-1} makes <main> programmatically focusable without putting it in
             the tab order. */}
-        <main id="main" ref={mainRef} tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto focus:outline-none">
+        <main id="main" ref={mainRef} tabIndex={-1} className="flex flex-col min-h-0 flex-1 w-full max-w-full min-w-0 overflow-x-hidden overflow-y-auto focus:outline-none">
           <RouteError resetKey={location.pathname}>
             <Suspense fallback={<PageLoader />}>
               {/*
@@ -191,7 +191,7 @@ const AppShell = () => {
                 `h-full` against, so a full-height page fills the viewport exactly instead of
                 growing with its content and making the whole page scroll.
               */}
-              <div key={location.pathname} className="h-full min-h-full">
+              <div key={location.pathname} className="flex flex-col flex-1 h-full min-h-full w-full max-w-full min-w-0">
                 <Outlet />
               </div>
             </Suspense>

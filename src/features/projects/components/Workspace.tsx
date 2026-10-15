@@ -78,6 +78,16 @@ const Workspace = ({ section }: WorkspaceProps) => {
   const hasSelectedView = Boolean(located || (spaceId && space) || issueKey || section === 'restructure' || section === 'settings' || section === 'initiatives');
   const isTreeHidden = hasSelectedView ? (focusMode || treeCollapsed) : false;
 
+  const currentTitle = useMemo(() => {
+    if (section === 'settings') return 'Workspace Settings';
+    if (section === 'initiatives') return 'Portfolio Initiatives';
+    if (section === 'restructure') return 'Restructure';
+    if (located) return `${located.space.name} / ${located.list.name}`;
+    if (space) return space.name;
+    if (issueKey) return issueKey;
+    return 'Navigation';
+  }, [section, located, space, issueKey]);
+
   useEffect(() => {
     if (!hasSelectedView && treeCollapsed) {
       dispatch(setTreeCollapsed(false));
@@ -112,11 +122,30 @@ const Workspace = ({ section }: WorkspaceProps) => {
   }
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col lg:flex-row">
+    <div className="relative flex min-h-full lg:h-full min-h-0 w-full max-w-full flex-col lg:flex-row">
+      {hasSelectedView && (
+        <div className="flex lg:hidden items-center justify-between px-3 py-1.5 border-b bg-muted/40 text-xs shrink-0">
+          <div className="flex items-center gap-1.5 min-w-0 truncate font-medium text-foreground">
+            <span className="truncate">{currentTitle}</span>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => dispatch(toggleTree())}
+            className="h-7 px-2 text-xs shrink-0 gap-1 text-muted-foreground hover:text-foreground"
+            aria-label={isTreeHidden ? 'Show spaces tree' : 'Hide spaces tree'}
+          >
+            <FolderKanban className="size-3.5" />
+            <span>{isTreeHidden ? 'Spaces' : 'Hide'}</span>
+          </Button>
+        </div>
+      )}
+
       <aside
         className={cn(
           'shrink-0 border-b border-border transition-all duration-200 ease-in-out lg:border-r lg:border-b-0 overflow-hidden',
-          isTreeHidden ? 'lg:w-0 border-r-0' : 'lg:w-64 lg:overflow-y-auto'
+          isTreeHidden ? 'hidden lg:block lg:w-0 border-r-0 border-b-0' : 'block w-full max-h-[50vh] overflow-y-auto lg:max-h-none lg:w-64 lg:overflow-y-auto'
         )}
       >
         <HierarchyPanel
@@ -165,7 +194,7 @@ const Workspace = ({ section }: WorkspaceProps) => {
         </button>
       )}
 
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col p-4 sm:p-6" aria-label="Selected list">
+      <section className="flex min-h-full lg:min-h-0 min-w-0 w-full max-w-full flex-1 flex-col p-3 sm:p-6 pb-24 sm:pb-8" aria-label="Selected list">
         {section === 'settings' ? (
           <Suspense fallback={<Skeleton aria-busy="true" className="h-72 rounded-xl" />}>
             <WorkspaceSettings workspaceId={tree.id} tree={tree} role={tree.role} onChanged={reload} />

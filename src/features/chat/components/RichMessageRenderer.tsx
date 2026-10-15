@@ -220,7 +220,7 @@ const RichTableBlock: React.FC<{
   if (headers.length === 0) return null;
 
   return (
-    <div className="my-3 overflow-hidden rounded-xl border border-border/80 bg-card shadow-xs">
+    <div className="my-3 overflow-hidden rounded-xl border border-border/80 bg-card shadow-xs w-full max-w-full min-w-0">
       {/* Table Action Header */}
       <div className="flex items-center justify-between border-b border-border/60 bg-muted/40 px-3.5 py-2">
         <div className="flex items-center gap-2">
@@ -246,8 +246,8 @@ const RichTableBlock: React.FC<{
       </div>
 
       {/* Responsive Table Body */}
-      <div className="overflow-x-auto">
-        <Table className="w-full text-xs">
+      <div className="overflow-x-auto w-full max-w-full min-w-0">
+        <Table className="w-full text-xs min-w-0">
           <TableHeader className="bg-muted/60">
             <TableRow className="border-b border-border/70 hover:bg-transparent">
               {headers.map((head, hIdx) => {
@@ -317,7 +317,7 @@ export const ToolExecutionCard: React.FC<{
   const hasArgs = args && Object.keys(args).length > 0;
 
   return (
-    <div className="mb-2.5 overflow-hidden rounded-lg border border-border/70 bg-muted/30 text-xs">
+    <div className="mb-2.5 overflow-hidden rounded-lg border border-border/70 bg-muted/30 text-xs w-full max-w-full min-w-0">
       <div
         onClick={() => hasArgs && setExpanded(!expanded)}
         className={`flex items-center justify-between px-3 py-1.5 select-none ${
@@ -356,18 +356,18 @@ export const ToolExecutionCard: React.FC<{
       </div>
 
       {expanded && hasArgs && (
-        <div className="border-t border-border/50 bg-background/80 p-2.5 font-mono text-[11px] space-y-1">
+        <div className="border-t border-border/50 bg-background/80 p-2.5 font-mono text-[11px] space-y-1 min-w-0">
           <div className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider mb-1">
             Execution Parameters
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 min-w-0">
             {Object.entries(args!).map(([k, v]) => (
               <div
                 key={k}
-                className="flex items-center justify-between gap-2 bg-muted/40 rounded px-2 py-1 border border-border/30"
+                className="flex items-center justify-between gap-2 bg-muted/40 rounded px-2 py-1 border border-border/30 min-w-0 overflow-hidden"
               >
-                <span className="text-muted-foreground truncate">{k}:</span>
-                <span className="font-semibold text-foreground truncate">
+                <span className="text-muted-foreground truncate shrink-0">{k}:</span>
+                <span className="font-semibold text-foreground truncate min-w-0">
                   {typeof v === 'object' ? JSON.stringify(v) : String(v)}
                 </span>
               </div>
@@ -522,7 +522,7 @@ export const RichMessageRenderer: React.FC<RichMessageRendererProps> = ({
   }, [text]);
 
   return (
-    <div className="space-y-3 text-xs sm:text-sm leading-relaxed break-words text-foreground">
+    <div className="space-y-3 text-xs sm:text-sm leading-relaxed break-words text-foreground w-full max-w-full min-w-0 overflow-hidden">
       {blocks.map((block, bIdx) => {
         // Code Block
         if (block.type === 'code') {
@@ -530,7 +530,7 @@ export const RichMessageRenderer: React.FC<RichMessageRendererProps> = ({
           return (
             <div
               key={bIdx}
-              className="my-3 overflow-hidden rounded-xl border border-border/80 bg-muted/50 font-mono text-xs shadow-2xs"
+              className="my-3 overflow-hidden rounded-xl border border-border/80 bg-muted/50 font-mono text-xs shadow-2xs w-full max-w-full min-w-0"
             >
               <div className="flex items-center justify-between border-b border-border/60 bg-muted/70 px-3.5 py-1.5 text-muted-foreground text-[11px]">
                 <span className="font-semibold">{block.lang || 'code'}</span>
@@ -547,7 +547,7 @@ export const RichMessageRenderer: React.FC<RichMessageRendererProps> = ({
                   <span>{copiedCodeIdx === bIdx ? 'Copied' : 'Copy'}</span>
                 </button>
               </div>
-              <pre className="p-3.5 overflow-x-auto whitespace-pre font-mono text-[11px] leading-relaxed text-foreground">
+              <pre className="p-3.5 overflow-x-auto whitespace-pre font-mono text-[11px] leading-relaxed text-foreground max-w-full">
                 {code}
               </pre>
             </div>

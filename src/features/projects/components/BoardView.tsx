@@ -268,7 +268,7 @@ const BoardView = ({ columns, canWrite, onMove, onAdd, onOpen }: BoardViewProps)
   };
 
   return (
-    <div className="flex min-h-0 flex-1 w-full gap-4 overflow-x-auto pb-2">
+    <div className="flex min-h-[480px] lg:min-h-0 flex-1 w-full max-w-full gap-4 overflow-x-auto pb-4">
       <p role="status" className="sr-only">
         {announcement}
       </p>
@@ -280,7 +280,7 @@ const BoardView = ({ columns, canWrite, onMove, onAdd, onOpen }: BoardViewProps)
             key={status.id}
             aria-labelledby={`column-${status.id}`}
             className={cn(
-              'flex max-h-full min-w-[280px] flex-1 shrink-0 flex-col rounded-xl border bg-muted/40 shadow-2xs transition-all duration-200',
+              'flex min-h-[460px] lg:min-h-0 max-h-none lg:max-h-full min-w-[260px] sm:min-w-[280px] max-w-[340px] flex-1 shrink-0 flex-col rounded-xl border bg-muted/40 shadow-2xs transition-all duration-200',
               colors.border,
             )}
           >

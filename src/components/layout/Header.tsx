@@ -79,7 +79,7 @@ const Header = ({ title, user, onOpenSidebar, onLogout }: HeaderProps) => {
           title={focusMode ? 'Exit Focus Mode (Shift+F)' : 'Enter Focus Mode (Shift+F)'}
           aria-label={focusMode ? 'Exit Focus Mode' : 'Enter Focus Mode'}
           className={cn(
-            'h-9 gap-1.5 text-xs transition-colors',
+            'hidden sm:inline-flex h-9 gap-1.5 text-xs transition-colors',
             focusMode && 'bg-primary text-primary-foreground font-semibold shadow-xs'
           )}
         >
@@ -98,7 +98,7 @@ const Header = ({ title, user, onOpenSidebar, onLogout }: HeaderProps) => {
           title={chatDrawerOpen ? 'Close AI Assistant' : 'Open AI Assistant'}
           aria-label={chatDrawerOpen ? 'Close AI Assistant' : 'Open AI Assistant'}
           className={cn(
-            'h-9 gap-1.5 px-2.5 sm:px-3 text-xs transition-colors',
+            'hidden sm:inline-flex h-9 gap-1.5 px-2.5 sm:px-3 text-xs transition-colors',
             chatDrawerOpen
               ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
               : 'text-primary hover:text-primary hover:bg-primary/10'

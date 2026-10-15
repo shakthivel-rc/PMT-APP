@@ -37,6 +37,8 @@ const IssueTable = ({ columns, onOpen }: IssueTableProps) => {
     {
       key: 'title',
       header: 'Title',
+      headerClassName: 'min-w-[200px]',
+      cellClassName: 'min-w-[200px]',
       // The button is the real control; the row click is only the mouse convenience, and
       // without this one press would open the drawer twice.
       stopRowClick: true,
@@ -79,13 +81,14 @@ const IssueTable = ({ columns, onOpen }: IssueTableProps) => {
   ];
 
   return (
-    <div className="min-h-0 overflow-auto rounded-xl border bg-card">
+    <div className="min-h-0 w-full max-w-full overflow-x-auto rounded-xl border bg-card">
       <DataTable
         columns={tableColumns}
         rows={paged.items}
         rowKey={({ card }) => card.id}
         caption="Issues in this list, in board order."
         ariaLabel="Issues"
+        className="min-w-[850px]"
         onRowClick={({ card }) => onOpen(card.id)}
         animate={false}
         empty={

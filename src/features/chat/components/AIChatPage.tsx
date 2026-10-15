@@ -31,7 +31,9 @@ export const AIChatPage: React.FC = () => {
   const [conversations, setConversations] = useState<ChatConversationSummary[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | undefined>(undefined);
   const [loadingConversations, setLoadingConversations] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 768 : true
+  );
 
   // Fetch workspaces
   useEffect(() => {
@@ -98,7 +100,7 @@ export const AIChatPage: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-background">
+    <div className="flex flex-1 h-full w-full overflow-hidden bg-background">
       {/* Sidebar: Conversation History */}
       <aside
         className={cn(
@@ -220,7 +222,7 @@ export const AIChatPage: React.FC = () => {
       </aside>
 
       {/* Main Chat Area */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col h-full overflow-hidden">
         <AIChatView
           key={`${selectedWorkspaceId}-${activeConversationId || 'new'}`}
           initialWorkspaceId={selectedWorkspaceId}

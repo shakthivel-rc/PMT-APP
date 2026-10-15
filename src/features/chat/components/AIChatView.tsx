@@ -328,44 +328,45 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
   const currentWorkspace = workspaces.find((w) => w.id === selectedWorkspaceId);
 
   return (
-    <div className="flex flex-col h-full bg-background border-border overflow-hidden">
+    <div className="flex flex-col flex-1 h-full w-full bg-background border-border overflow-hidden">
       {/* Header Bar */}
-      <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-card/75 px-4 backdrop-blur-md">
-        <div className="flex items-center gap-2.5 min-w-0">
+      <div className="flex h-12 sm:h-14 shrink-0 items-center justify-between gap-1.5 sm:gap-3 border-b border-border bg-card/75 px-2.5 sm:px-4 backdrop-blur-md">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-1">
           {/* Sidebar Toggle in page view */}
           {onToggleSidebar && (
             <Button
               variant="ghost"
               size="icon"
               onClick={onToggleSidebar}
-              className="size-8 rounded-lg text-muted-foreground hover:text-foreground shrink-0"
+              className="size-7 sm:size-8 rounded-lg text-muted-foreground hover:text-foreground shrink-0"
               title={sidebarOpen ? 'Hide conversations' : 'Show conversations'}
             >
-              {sidebarOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
+              {sidebarOpen ? <PanelLeftClose className="size-3.5 sm:size-4" /> : <PanelLeftOpen className="size-3.5 sm:size-4" />}
             </Button>
           )}
 
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Sparkles className="size-4" />
+          <div className="flex size-7 sm:size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Sparkles className="size-3.5 sm:size-4" />
           </div>
 
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-semibold truncate leading-tight text-foreground">
-                PMT AI Assistant
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-xs sm:text-sm font-semibold truncate leading-tight text-foreground">
+                <span className="sm:hidden">AI Assistant</span>
+                <span className="hidden sm:inline">PMT AI Assistant</span>
               </h2>
-              <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 uppercase text-primary border-primary/30">
+              <Badge variant="outline" className="hidden sm:inline-flex text-[10px] font-mono px-1.5 py-0 uppercase text-primary border-primary/30 shrink-0">
                 Gateway
               </Badge>
             </div>
-            <p className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">
+            <p className="hidden md:block text-[11px] text-muted-foreground truncate leading-tight mt-0.5">
               Workspace automation & pair programming
             </p>
           </div>
         </div>
 
         {/* Right Header Toolbar */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Current Workspace badge if selected, or selector if in standalone mode */}
           {initialWorkspaceId && currentWorkspace ? (
             <Badge variant="secondary" className="hidden sm:flex items-center gap-1.5 text-xs font-normal py-1 px-2.5 bg-muted/60">
@@ -375,7 +376,7 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
           ) : (
             workspaces.length > 1 && (
               <Select value={selectedWorkspaceId} onValueChange={setSelectedWorkspaceId}>
-                <SelectTrigger className="h-8 text-xs w-[130px] sm:w-[150px] px-2 font-medium">
+                <SelectTrigger className="h-7 sm:h-8 text-xs max-w-[100px] sm:max-w-none sm:w-[150px] px-1.5 sm:px-2 font-medium">
                   <Building2 className="size-3 text-muted-foreground mr-1 shrink-0" />
                   <SelectValue placeholder="Workspace" />
                 </SelectTrigger>
@@ -395,7 +396,7 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
             variant="ghost"
             onClick={handleStartNewChat}
             title="Start new conversation"
-            className="h-8 px-2.5 text-xs gap-1 text-muted-foreground hover:text-foreground"
+            className="size-7 sm:size-auto sm:h-8 p-0 sm:px-2.5 text-xs gap-1 text-muted-foreground hover:text-foreground rounded-lg"
           >
             <Plus className="size-3.5" />
             <span className="hidden sm:inline">New</span>
@@ -406,9 +407,9 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
             variant="ghost"
             onClick={() => setSettingsOpen(true)}
             title="Configure AI model & credentials"
-            className="size-8 p-0 text-muted-foreground hover:text-foreground rounded-lg"
+            className="size-7 sm:size-8 p-0 text-muted-foreground hover:text-foreground rounded-lg"
           >
-            <Settings2 className="size-4" />
+            <Settings2 className="size-3.5 sm:size-4" />
           </Button>
 
           {/* Close drawer button */}
@@ -418,9 +419,9 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
               variant="ghost"
               onClick={onClose}
               title="Close assistant"
-              className="size-8 p-0 text-muted-foreground hover:text-foreground rounded-lg"
+              className="size-7 sm:size-8 p-0 text-muted-foreground hover:text-foreground rounded-lg"
             >
-              <X className="size-4" />
+              <X className="size-3.5 sm:size-4" />
             </Button>
           )}
         </div>
@@ -450,10 +451,10 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
       {/* Messages Stream */}
       <div
         ref={scrollContainerRef}
-        className={`flex-1 overflow-y-auto ${compact ? 'p-3 space-y-3' : 'p-4 sm:p-5 space-y-4'} min-h-0 bg-background/50`}
+        className={`flex-1 overflow-y-auto overflow-x-hidden ${compact ? 'p-3 space-y-3' : 'p-3 sm:p-5 space-y-4'} min-h-0 min-w-0 w-full max-w-full bg-background/50`}
       >
         {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center max-w-md mx-auto py-8 px-4 text-muted-foreground">
+          <div className="flex flex-col items-center justify-center min-h-full text-center max-w-md mx-auto py-6 sm:py-8 px-4 text-muted-foreground">
             <div className="size-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3 shadow-sm">
               <Sparkles className="size-6 animate-pulse" />
             </div>
@@ -494,19 +495,19 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
           return (
             <div
               key={idx}
-              className={`group flex flex-col gap-1 text-sm ${isUser ? 'items-end' : 'items-start'}`}
+              className={`group flex flex-col gap-1 text-sm w-full max-w-full min-w-0 ${isUser ? 'items-end' : 'items-start'}`}
             >
-              <div className={`flex gap-2.5 items-start max-w-full ${isUser ? 'justify-end' : 'justify-start'}`}>
+              <div className={`flex gap-2 sm:gap-2.5 items-start w-full max-w-full min-w-0 ${isUser ? 'justify-end' : 'justify-start'}`}>
                 {/* Assistant avatar */}
                 {!isUser && (
-                  <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
-                    <Bot className="size-4" />
+                  <div className="size-7 sm:size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                    <Bot className="size-3.5 sm:size-4" />
                   </div>
                 )}
 
-                {/* Left hover actions for user messages */}
+                {/* Left hover actions for user messages (desktop only) */}
                 {isUser && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150 self-center">
+                  <div className="hidden sm:flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150 self-center">
                     <Button
                       type="button"
                       variant="ghost"
@@ -536,7 +537,7 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
 
                 {/* Message Bubble */}
                 <div
-                  className={`max-w-[85%] md:max-w-[78%] rounded-2xl px-4 py-3 shadow-2xs ${
+                  className={`min-w-0 max-w-[calc(100%-38px)] sm:max-w-[78%] rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 shadow-2xs break-words [word-break:break-word] overflow-hidden ${
                     isUser
                       ? 'bg-primary text-primary-foreground rounded-tr-xs'
                       : 'bg-card border border-border/80 text-foreground rounded-tl-xs'
@@ -544,7 +545,7 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
                 >
                   {/* Tool execution cards */}
                   {!isUser && msg.tool_calls && msg.tool_calls.length > 0 && (
-                    <div className="mb-2 space-y-1.5">
+                    <div className="mb-2 space-y-1.5 min-w-0 max-w-full">
                       {msg.tool_calls.map((tc, tIdx) => {
                         const toolName = typeof tc === 'string' ? tc : tc.name || tc.tool || 'tool';
                         const args = typeof tc === 'object' && tc ? (tc.arguments || tc.args) : undefined;
@@ -562,7 +563,7 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
                   {/* Message text */}
                   {msg.content && (
                     isUser ? (
-                      <div className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</div>
+                      <div className="whitespace-pre-wrap break-words [word-break:break-word] text-xs sm:text-sm leading-relaxed">{msg.content}</div>
                     ) : (
                       <RichMessageRenderer
                         text={msg.content}
@@ -600,11 +601,57 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
                       disabled={loading}
                     />
                   )}
+
+                  {/* Mobile action bar for assistant message */}
+                  {!isUser && (
+                    <div className="flex sm:hidden items-center gap-2 mt-2 pt-2 border-t border-border/40 text-muted-foreground">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyMessage(msg.content || '', idx)}
+                        className="inline-flex items-center gap-1 text-2xs hover:text-foreground cursor-pointer"
+                      >
+                        {copiedMessageIdx === idx ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
+                        <span>{copiedMessageIdx === idx ? 'Copied' : 'Copy'}</span>
+                      </button>
+                      {isLatestAssistant && !loading && (
+                        <button
+                          type="button"
+                          onClick={handleRetryLastTurn}
+                          className="inline-flex items-center gap-1 text-2xs hover:text-foreground cursor-pointer ml-1"
+                        >
+                          <RotateCcw className="size-3" />
+                          <span>Retry</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Mobile action bar for user message */}
+                  {isUser && (
+                    <div className="flex sm:hidden items-center justify-end gap-2 mt-1.5 pt-1.5 border-t border-primary-foreground/20 text-primary-foreground/80">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyMessage(msg.content || '', idx)}
+                        className="inline-flex items-center gap-1 text-2xs hover:text-primary-foreground cursor-pointer"
+                      >
+                        {copiedMessageIdx === idx ? <Check className="size-3" /> : <Copy className="size-3" />}
+                        <span>Copy</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleReusePrompt(msg.content || '')}
+                        className="inline-flex items-center gap-1 text-2xs hover:text-primary-foreground cursor-pointer ml-1"
+                      >
+                        <Pencil className="size-3" />
+                        <span>Edit</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                {/* Right hover actions for assistant messages */}
+                {/* Right hover actions for assistant messages (desktop only) */}
                 {!isUser && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150 self-center">
+                  <div className="hidden sm:flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150 self-center">
                     <Button
                       type="button"
                       variant="ghost"
@@ -636,8 +683,8 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
 
                 {/* User avatar */}
                 {isUser && (
-                  <div className="size-8 rounded-lg bg-secondary text-secondary-foreground flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
-                    <UserIcon className="size-4" />
+                  <div className="size-7 sm:size-8 rounded-lg bg-secondary text-secondary-foreground flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                    <UserIcon className="size-3.5 sm:size-4" />
                   </div>
                 )}
               </div>
@@ -645,7 +692,7 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
               {/* Timestamp */}
               {timeStr && (
                 <span
-                  className={`text-[10px] text-muted-foreground/60 ${isUser ? 'pr-10' : 'pl-10'}`}
+                  className={`text-[10px] text-muted-foreground/60 ${isUser ? 'pr-8 sm:pr-10' : 'pl-8 sm:pl-10'}`}
                 >
                   {timeStr}
                 </span>
@@ -668,13 +715,13 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
       </div>
 
       {/* Input Composer */}
-      <div className="border-t border-border bg-card p-3 sm:p-4 shrink-0">
+      <div className="border-t border-border bg-card p-2.5 sm:p-4 shrink-0">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             handleSend();
           }}
-          className="flex items-end gap-2.5"
+          className="flex items-end gap-2 sm:gap-2.5"
         >
           <div className="relative flex-1">
             <textarea
@@ -685,11 +732,11 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
               onKeyDown={handleKeyDown}
               placeholder={
                 selectedWorkspaceId
-                  ? 'Ask PMT Assistant anything... (Enter to send, Shift+Enter for newline)'
+                  ? 'Ask PMT Assistant anything...'
                   : 'Select a workspace first...'
               }
               disabled={loading || !selectedWorkspaceId}
-              className="w-full resize-none rounded-xl border border-input bg-background px-3.5 py-3 text-xs sm:text-sm text-foreground shadow-2xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[44px] max-h-[140px] leading-snug"
+              className="w-full resize-none rounded-xl border border-input bg-background px-3 py-2.5 sm:px-3.5 sm:py-3 text-xs sm:text-sm text-foreground shadow-2xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[40px] sm:min-h-[44px] max-h-[140px] leading-snug"
             />
           </div>
 
@@ -697,7 +744,7 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
             type="submit"
             size="icon"
             disabled={!inputMessage.trim() || loading || !selectedWorkspaceId}
-            className="size-11 rounded-xl shrink-0 shadow-xs"
+            className="size-10 sm:size-11 rounded-xl shrink-0 shadow-xs"
             title="Send message"
           >
             {loading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}

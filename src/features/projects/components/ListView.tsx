@@ -187,8 +187,8 @@ const ListView = ({ workspaceId, space, list, role }: ListViewProps) => {
   const totalCards = columns ? columns.reduce((acc, col) => acc + col.cards.length, 0) : 0;
 
   return (
-    <div className="flex min-h-0 flex-1 w-full flex-col gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="flex min-h-full lg:min-h-0 flex-1 w-full max-w-full min-w-0 flex-col gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-3 min-w-0">
         <div className="min-w-0">
           <Link
             to={spaceHref(workspaceId, space.id)}
@@ -197,7 +197,7 @@ const ListView = ({ workspaceId, space, list, role }: ListViewProps) => {
           >
             {space.name}
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
             <h2 className="truncate text-xl font-bold tracking-tight">{list.name}</h2>
             {columns !== null && (
               <Badge variant="secondary" className="font-mono text-xs font-normal">
@@ -206,20 +206,20 @@ const ListView = ({ workspaceId, space, list, role }: ListViewProps) => {
             )}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           {/* Settings configures the space (workflows, charter, danger zone). */}
-          <Button size="sm" variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/60 shadow-2xs transition-colors font-medium" asChild>
+          <Button size="sm" variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/60 shadow-2xs transition-colors font-medium text-xs sm:text-sm" asChild>
             <Link to={spaceHref(workspaceId, space.id, 'settings')}>
-              <Settings className="h-4 w-4 text-amber-500 mr-1.5" aria-hidden="true" /> Project Settings
+              <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-500 mr-1 sm:mr-1.5" aria-hidden="true" /> Project Settings
             </Link>
           </Button>
           {/* Sprints are per project (space); reports open scoped to it. */}
-          <Button size="sm" variant="outline" className="border-violet-500/40 bg-violet-500/10 text-violet-600 dark:text-violet-400 hover:bg-violet-500/20 hover:border-violet-500/60 shadow-2xs transition-colors font-medium" onClick={() => setSprintsOpen(true)}>
-            <Zap className="h-4 w-4 text-violet-500 fill-violet-500/25 mr-1.5" aria-hidden /> Sprints
+          <Button size="sm" variant="outline" className="border-violet-500/40 bg-violet-500/10 text-violet-600 dark:text-violet-400 hover:bg-violet-500/20 hover:border-violet-500/60 shadow-2xs transition-colors font-medium text-xs sm:text-sm" onClick={() => setSprintsOpen(true)}>
+            <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-violet-500 fill-violet-500/25 mr-1 sm:mr-1.5" aria-hidden /> Sprints
           </Button>
-          <Button size="sm" variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/60 shadow-2xs transition-colors font-medium" asChild>
+          <Button size="sm" variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/60 shadow-2xs transition-colors font-medium text-xs sm:text-sm" asChild>
             <Link to={reportsHref}>
-              <BarChart3 className="h-4 w-4 text-emerald-500 mr-1.5" aria-hidden /> Reports
+              <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-500 mr-1 sm:mr-1.5" aria-hidden /> Reports
             </Link>
           </Button>
 

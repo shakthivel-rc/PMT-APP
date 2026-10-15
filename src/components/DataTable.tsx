@@ -139,7 +139,7 @@ function DataTable<T>({
 
   return (
     <>
-      <Table aria-label={ariaLabel} className={className}>
+      <Table aria-label={ariaLabel} className={cn('min-w-[600px]', className)}>
         <TableCaption className="sr-only">{caption}</TableCaption>
         <TableHeader>
           <TableRow className="hover:bg-transparent">

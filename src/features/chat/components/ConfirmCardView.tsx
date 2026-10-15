@@ -25,7 +25,7 @@ export const ConfirmCardView = ({
 
   return (
     <div
-      className={`my-3 rounded-xl border p-4 shadow-sm transition-all ${
+      className={`my-3 rounded-xl border p-3.5 sm:p-4 shadow-sm transition-all w-full max-w-full min-w-0 overflow-hidden break-words ${
         isT3
           ? 'border-destructive/40 bg-destructive/10 text-foreground'
           : 'border-warning/40 bg-warning/10 text-foreground'

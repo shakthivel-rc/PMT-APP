@@ -267,12 +267,12 @@ const Timesheet = () => {
         }
       />
 
-      <div className="mb-4 flex flex-wrap items-end gap-3">
-        <div className="grid gap-1.5">
+      <div className="mb-4 flex flex-wrap items-end gap-3 w-full sm:w-auto">
+        <div className="grid gap-1.5 w-full sm:w-auto">
           <Label htmlFor="ts-workspace">Workspace</Label>
           {workspaces ? (
             <Select value={workspaceId ?? undefined} onValueChange={(id) => update({ workspace: id, person: null })}>
-              <SelectTrigger id="ts-workspace" className="w-56">
+              <SelectTrigger id="ts-workspace" className="w-full sm:w-56">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -284,14 +284,14 @@ const Timesheet = () => {
               </SelectContent>
             </Select>
           ) : (
-            <Skeleton className="h-9 w-56" />
+            <Skeleton className="h-9 w-full sm:w-56" />
           )}
         </div>
         {seesOthers && (
-          <div className="grid gap-1.5">
+          <div className="grid gap-1.5 w-full sm:w-auto">
             <Label htmlFor="ts-person">Person</Label>
             <Select value={person} onValueChange={(value) => update({ person: value === 'me' ? null : value })}>
-              <SelectTrigger id="ts-person" className="w-56">
+              <SelectTrigger id="ts-person" className="w-full sm:w-56">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -306,11 +306,11 @@ const Timesheet = () => {
             </Select>
           </div>
         )}
-        <div role="group" aria-label="Week" className="ml-auto flex items-center gap-1">
+        <div role="group" aria-label="Week" className="flex items-center gap-1 w-full sm:w-auto sm:ml-auto justify-between sm:justify-start">
           <Button variant="outline" size="icon" aria-label="Previous week" onClick={() => update({ week: toDateKey(addDays(start, -7)) })}>
             <ChevronLeft aria-hidden="true" />
           </Button>
-          <Button variant="outline" onClick={() => update({ week: null })}>
+          <Button variant="outline" onClick={() => update({ week: null })} className="flex-1 sm:flex-none">
             This week
           </Button>
           <Button variant="outline" size="icon" aria-label="Next week" onClick={() => update({ week: toDateKey(addDays(start, 7)) })}>

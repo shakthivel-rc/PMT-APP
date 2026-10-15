@@ -1421,14 +1421,14 @@ export const SpaceSettings = ({ workspaceId, space, role, onChanged }: SpaceSett
       {/* Settings Navigation Sidebar */}
       <aside className="w-full shrink-0 lg:w-60">
         <div className="rounded-xl border bg-card p-2 shadow-2xs">
-          <div className="px-3 py-2">
+          <div className="hidden lg:block px-3 py-2">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Space Settings</h3>
           </div>
-          <nav aria-label="Settings navigation" className="space-y-1">
+          <nav aria-label="Settings navigation" className="flex flex-row overflow-x-auto gap-1 pb-1 lg:flex-col lg:space-y-1 lg:overflow-visible lg:pb-0">
             <button
               type="button"
               onClick={() => setSection('workflow')}
-              className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`flex shrink-0 whitespace-nowrap lg:w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 section === 'workflow'
                   ? 'bg-primary/10 text-primary font-semibold'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -1441,20 +1441,20 @@ export const SpaceSettings = ({ workspaceId, space, role, onChanged }: SpaceSett
             <button
               type="button"
               onClick={() => setSection('general')}
-              className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`flex shrink-0 whitespace-nowrap lg:w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 section === 'general'
                   ? 'bg-primary/10 text-primary font-semibold'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}
             >
               <Settings className="size-4 shrink-0" aria-hidden="true" />
-              General & Charter (Project Settings)
+              General & Charter
             </button>
 
             <button
               type="button"
               onClick={() => setSection('ai')}
-              className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`flex shrink-0 whitespace-nowrap lg:w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 section === 'ai'
                   ? 'bg-primary/10 text-primary font-semibold'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -1467,7 +1467,7 @@ export const SpaceSettings = ({ workspaceId, space, role, onChanged }: SpaceSett
             <button
               type="button"
               onClick={() => setSection('budget')}
-              className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`flex shrink-0 whitespace-nowrap lg:w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 section === 'budget'
                   ? 'bg-primary/10 text-primary font-semibold'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -1480,7 +1480,7 @@ export const SpaceSettings = ({ workspaceId, space, role, onChanged }: SpaceSett
             <button
               type="button"
               onClick={() => setSection('members')}
-              className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`flex shrink-0 whitespace-nowrap lg:w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 section === 'members'
                   ? 'bg-primary/10 text-primary font-semibold'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -1493,7 +1493,7 @@ export const SpaceSettings = ({ workspaceId, space, role, onChanged }: SpaceSett
             <button
               type="button"
               onClick={() => setSection('storage')}
-              className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`flex shrink-0 whitespace-nowrap lg:w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 section === 'storage'
                   ? 'bg-primary/10 text-primary font-semibold'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -1506,7 +1506,7 @@ export const SpaceSettings = ({ workspaceId, space, role, onChanged }: SpaceSett
             <button
               type="button"
               onClick={() => setSection('integrations')}
-              className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`flex shrink-0 whitespace-nowrap lg:w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 section === 'integrations'
                   ? 'bg-primary/10 text-primary font-semibold'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -1520,7 +1520,7 @@ export const SpaceSettings = ({ workspaceId, space, role, onChanged }: SpaceSett
               <button
                 type="button"
                 onClick={() => setSection('danger')}
-                className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`flex shrink-0 whitespace-nowrap lg:w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   section === 'danger'
                     ? 'bg-danger-subtle text-danger font-semibold'
                     : 'text-muted-foreground hover:bg-muted hover:text-danger'
@@ -1535,7 +1535,7 @@ export const SpaceSettings = ({ workspaceId, space, role, onChanged }: SpaceSett
       </aside>
 
       {/* Main Settings Content Area */}
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 pb-24 sm:pb-8">
         {section === 'workflow' && (
           <Suspense fallback={<Skeleton className="h-64 rounded-xl" />}>
             <WorkflowEditor workspaceId={workspaceId} space={space} role={role} onPublished={onChanged} />
