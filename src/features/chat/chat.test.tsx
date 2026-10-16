@@ -231,5 +231,120 @@ describe('Chat Components', () => {
       expect(onOpenChange).toHaveBeenCalledWith(false);
     });
   });
+
+  describe('<AIChatView> Multimodal Attachments', () => {
+    it('renders paperclip button, hidden file input, and stages uploaded files', async () => {
+      const chatApi = await import('@/api/chat');
+      const workspacesApi = await import('@/api/workspaces');
+
+      vi.spyOn(workspacesApi, 'fetchWorkspacesApi').mockResolvedValue([
+        { id: 'ws-101', name: 'Mobile App', slug: 'mobile-app', is_admin: true } as any,
+      ]);
+      vi.spyOn(chatApi, 'fetchChatSettings').mockResolvedValue({
+        provider: 'google',
+        model: 'gemini-1.5-pro',
+        has_api_key: true,
+      });
+      vi.spyOn(chatApi, 'uploadChatAttachmentApi').mockResolvedValue({
+        id: 'att-555',
+        original_filename: 'crash_screenshot.png',
+        mime_type: 'image/png',
+        file_size_bytes: 45000,
+        created_at: new Date().toISOString(),
+      });
+      vi.spyOn(chatApi, 'sendChatTurn').mockResolvedValue({
+        conversation_id: 'conv-1',
+        reply: 'I have inspected your crash screenshot and created ticket MOB-12.',
+        tool_calls_executed: [],
+      });
+      vi.spyOn(chatApi, 'fetchConversationHistory').mockResolvedValue({
+        conversation: { id: 'conv-1', title: 'Test Conv', created_at: '', updated_at: '' },
+        messages: [],
+      });
+
+      const { AIChatView } = await import('./components/AIChatView');
+      const user = userEvent.setup();
+
+      renderWithProviders(<AIChatView initialWorkspaceId="ws-101" />);
+
+      // Verify paperclip button is present
+      const attachBtn = await screen.findByTitle(/attach image or document/i);
+      expect(attachBtn).toBeInTheDocument();
+
+      // Verify file input exists
+      const fileInput = document.getElementById('chat-file-input') as HTMLInputElement;
+      expect(fileInput).toBeInTheDocument();
+      expect(fileInput).toHaveAttribute('accept', 'image/*,.pdf,.docx,.txt,.csv,.json');
+
+      // Upload a fake screenshot file
+      const fakeFile = new File(['fake-png-content'], 'crash_screenshot.png', {
+        type: 'image/png',
+      });
+      await user.upload(fileInput, fakeFile);
+
+      // Verify uploadChatAttachmentApi was invoked
+      expect(chatApi.uploadChatAttachmentApi).toHaveBeenCalledWith(
+        'ws-101',
+        expect.any(File),
+        undefined
+      );
+
+      // Verify staged item chip appears
+      expect(await screen.findByText('crash_screenshot.png')).toBeInTheDocument();
+
+      // Send the turn with the attachment
+      const sendBtn = screen.getByTitle('Send message');
+      expect(sendBtn).not.toBeDisabled();
+      await user.click(sendBtn);
+
+      // Verify sendChatTurn called with attachment_ids
+      expect(chatApi.sendChatTurn).toHaveBeenCalledWith(
+        'ws-101',
+        expect.objectContaining({
+          attachment_ids: ['att-555'],
+        })
+      );
+    });
+
+    it('renders message attachment preview chip and download link', async () => {
+      const chatApi = await import('@/api/chat');
+      const workspacesApi = await import('@/api/workspaces');
+
+      vi.spyOn(workspacesApi, 'fetchWorkspacesApi').mockResolvedValue([
+        { id: 'ws-101', name: 'Mobile App', slug: 'mobile-app', is_admin: true } as any,
+      ]);
+      vi.spyOn(chatApi, 'fetchChatSettings').mockResolvedValue({
+        provider: 'google',
+        model: 'gemini-1.5-pro',
+        has_api_key: true,
+      });
+      vi.spyOn(chatApi, 'fetchConversationHistory').mockResolvedValue({
+        conversation: { id: 'conv-10', title: 'Doc Ingestion', created_at: '', updated_at: '' },
+        messages: [
+          {
+            role: 'user',
+            content: 'Please scaffold from this spec',
+            attachments: [
+              {
+                id: 'att-doc-1',
+                original_filename: 'spec_v1.pdf',
+                mime_type: 'application/pdf',
+                file_size_bytes: 125000,
+                created_at: new Date().toISOString(),
+              },
+            ],
+          },
+        ],
+      });
+
+      const { AIChatView } = await import('./components/AIChatView');
+      renderWithProviders(<AIChatView initialWorkspaceId="ws-101" initialConversationId="conv-10" />);
+
+      expect(await screen.findByText('spec_v1.pdf')).toBeInTheDocument();
+      const downloadLink = screen.getByTitle('Download spec_v1.pdf');
+      expect(downloadLink).toBeInTheDocument();
+      expect(downloadLink).toHaveAttribute('href', expect.stringContaining('/chat/attachments/att-doc-1'));
+    });
+  });
 });
 

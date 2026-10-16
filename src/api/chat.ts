@@ -1,8 +1,20 @@
 import { api } from './client';
 
+export interface ChatAttachmentSummary {
+  id: string;
+  conversation_id?: string | null;
+  message_id?: string | null;
+  original_filename: string;
+  mime_type: string;
+  file_size_bytes: number;
+  extracted_preview?: string | null;
+  created_at: string;
+}
+
 export interface ChatTurnRequest {
   message?: string;
   conversation_id?: string;
+  attachment_ids?: string[];
   confirm_action_id?: string;
   confirm_typed_text?: string;
   cancel_action_id?: string;
@@ -66,6 +78,7 @@ export interface ChatMessageItem {
   id?: string;
   role: 'user' | 'assistant' | 'tool';
   content?: string;
+  attachments?: ChatAttachmentSummary[];
   tool_calls?: any[];
   tool_call_id?: string;
   name?: string;
@@ -165,3 +178,55 @@ export async function fetchAvailableModels(payload: {
   const res = await api.post<FetchModelsResult>('/user/chat-settings/fetch-models', payload);
   return res.data;
 }
+
+export function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64 = result.includes(',') ? result.split(',')[1] : result;
+      resolve(base64);
+    };
+    reader.onerror = (error) => reject(error);
+    reader.readAsDataURL(file);
+  });
+}
+
+export async function uploadChatAttachmentApi(
+  workspaceId: string,
+  file: File,
+  conversationId?: string,
+): Promise<ChatAttachmentSummary> {
+  const b64 = await fileToBase64(file);
+  const payload: Record<string, unknown> = {
+    filename: file.name,
+    content_type: file.type || 'application/octet-stream',
+    content_base64: b64,
+  };
+  if (conversationId) {
+    payload.conversation_id = conversationId;
+  }
+  const params = conversationId ? `?conversation_id=${encodeURIComponent(conversationId)}` : '';
+  const res = await api.post<ChatAttachmentSummary>(
+    `/workspaces/${workspaceId}/chat/attachments${params}`,
+    payload,
+  );
+  return res.data;
+}
+
+export function getChatAttachmentDownloadUrl(
+  workspaceId: string,
+  attachmentId: string,
+  withToken = true,
+): string {
+  const base = import.meta.env.VITE_API_BASE_URL || '/api';
+  let url = `${base}/workspaces/${workspaceId}/chat/attachments/${attachmentId}`;
+  if (withToken) {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      url += `?token=${encodeURIComponent(token)}`;
+    }
+  }
+  return url;
+}
+

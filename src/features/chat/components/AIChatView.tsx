@@ -15,6 +15,13 @@ import {
   Check,
   RotateCcw,
   Pencil,
+  Paperclip,
+  FileText,
+  FileSpreadsheet,
+  FileCode,
+  Download,
+  Eye,
+  UploadCloud,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -31,7 +38,10 @@ import {
   sendChatTurn,
   fetchConversationHistory,
   fetchChatSettings,
+  uploadChatAttachmentApi,
+  getChatAttachmentDownloadUrl,
   type ChatMessageItem,
+  type ChatAttachmentSummary,
   type ConfirmCard,
   type Clarification,
   type ChatSettings,
@@ -53,11 +63,43 @@ interface AIChatViewProps {
   onToggleSidebar?: () => void;
 }
 
+interface StagedAttachment {
+  file: File;
+  id?: string;
+  uploading: boolean;
+  error?: string;
+  previewUrl?: string;
+  summary?: ChatAttachmentSummary;
+}
+
+const formatFileSize = (bytes: number): string => {
+  if (!bytes || bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+};
+
+const getFileIcon = (mimeType: string, filename: string) => {
+  const lowerName = filename.toLowerCase();
+  if (mimeType.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg)$/i.test(lowerName)) {
+    return <Eye className="size-4 text-sky-500 shrink-0" />;
+  }
+  if (mimeType.includes('csv') || /\.(csv|xlsx?)$/i.test(lowerName)) {
+    return <FileSpreadsheet className="size-4 text-emerald-500 shrink-0" />;
+  }
+  if (mimeType.includes('json') || /\.(json|ya?ml|xml)$/i.test(lowerName)) {
+    return <FileCode className="size-4 text-amber-500 shrink-0" />;
+  }
+  return <FileText className="size-4 text-indigo-500 shrink-0" />;
+};
+
 const EXAMPLE_PROMPTS = [
   'List all timesheets from 01-10-2026 to 10-10-2026',
   'What are the open high priority bugs in this workspace?',
   'Show active sprint progress and unassigned tickets',
   'Search knowledge docs for deployment instructions',
+  'Drop an error screenshot or PRD to convert into issues',
 ];
 
 
@@ -81,6 +123,13 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
 
   const [activeConfirmCard, setActiveConfirmCard] = useState<ConfirmCard | null>(null);
   const [activeClarification, setActiveClarification] = useState<Clarification | null>(null);
+
+  // Multimodal Staging, Drag & Drop, and Preview Modal
+  const [stagedAttachments, setStagedAttachments] = useState<StagedAttachment[]>([]);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [previewImage, setPreviewImage] = useState<{ url: string; filename: string } | null>(null);
+  const dragCounterRef = useRef(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -153,16 +202,143 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
     setActiveConfirmCard(null);
     setActiveClarification(null);
     setInputMessage('');
+    stagedAttachments.forEach((item) => {
+      if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+    });
+    setStagedAttachments([]);
+    setPreviewImage(null);
     textareaRef.current?.focus();
+  };
+
+  const handleFilesSelected = (files: File[]) => {
+    if (!selectedWorkspaceId) {
+      toast.error('Please select a workspace before uploading files.');
+      return;
+    }
+
+    const newStaged: StagedAttachment[] = files.map((file) => {
+      const isImg = file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg)$/i.test(file.name);
+      const previewUrl = isImg ? URL.createObjectURL(file) : undefined;
+      return {
+        file,
+        uploading: true,
+        previewUrl,
+      };
+    });
+
+    setStagedAttachments((prev) => [...prev, ...newStaged]);
+
+    newStaged.forEach(async (staged) => {
+      try {
+        const summary = await uploadChatAttachmentApi(selectedWorkspaceId, staged.file, conversationId);
+        setStagedAttachments((prev) =>
+          prev.map((item) =>
+            item.file === staged.file
+              ? { ...item, id: summary.id, uploading: false, summary }
+              : item
+          )
+        );
+      } catch (err: any) {
+        const errMsg = err?.response?.data?.message || err?.message || 'Upload failed';
+        toast.error(`Failed to upload ${staged.file.name}: ${errMsg}`);
+        setStagedAttachments((prev) =>
+          prev.map((item) =>
+            item.file === staged.file
+              ? { ...item, uploading: false, error: errMsg }
+              : item
+          )
+        );
+      }
+    });
+  };
+
+  const handleRemoveStaged = (index: number) => {
+    setStagedAttachments((prev) => {
+      const item = prev[index];
+      if (item?.previewUrl) {
+        URL.revokeObjectURL(item.previewUrl);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current += 1;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDraggingOver(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current <= 0) {
+      setIsDraggingOver(false);
+      dragCounterRef.current = 0;
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+    dragCounterRef.current = 0;
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFilesSelected(Array.from(e.dataTransfer.files));
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const filesToUpload: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === 'file') {
+        const file = item.getAsFile();
+        if (file) {
+          filesToUpload.push(file);
+        }
+      }
+    }
+
+    if (filesToUpload.length > 0) {
+      e.preventDefault();
+      handleFilesSelected(filesToUpload);
+    }
   };
 
   const handleSend = async (customMessage?: string) => {
     const textToSend = customMessage !== undefined ? customMessage : inputMessage;
-    if (!textToSend.trim() || loading || !selectedWorkspaceId) return;
+    const isAnyAttachmentUploading = stagedAttachments.some((a) => a.uploading);
+    if (isAnyAttachmentUploading) {
+      toast.info('Please wait for file attachments to finish uploading.');
+      return;
+    }
+
+    const validAttachmentIds = stagedAttachments
+      .map((a) => a.id)
+      .filter((id): id is string => Boolean(id));
+    const validAttachmentSummaries = stagedAttachments
+      .map((a) => a.summary)
+      .filter((s): s is ChatAttachmentSummary => Boolean(s));
+
+    const effectiveText = textToSend.trim() || (validAttachmentIds.length > 0 ? 'Please inspect the attached file(s).' : '');
+    if (!effectiveText || loading || !selectedWorkspaceId) return;
 
     const userMsg: ChatMessageItem = {
       role: 'user',
-      content: textToSend.trim(),
+      content: effectiveText,
+      attachments: validAttachmentSummaries.length > 0 ? validAttachmentSummaries : undefined,
       created_at: new Date().toISOString(),
     };
 
@@ -170,12 +346,14 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
     if (customMessage === undefined) {
       setInputMessage('');
     }
+    setStagedAttachments([]);
     setLoading(true);
 
     try {
       const result = await sendChatTurn(selectedWorkspaceId, {
-        message: textToSend.trim(),
+        message: effectiveText,
         conversation_id: conversationId,
+        attachment_ids: validAttachmentIds.length > 0 ? validAttachmentIds : undefined,
       });
 
       if (result.conversation_id && result.conversation_id !== conversationId) {
@@ -334,7 +512,30 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col flex-1 h-full w-full bg-background border-border overflow-hidden">
+    <div
+      className="relative flex flex-col flex-1 h-full w-full bg-background border-border overflow-hidden"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Drag & Drop Overlay */}
+      {isDraggingOver && (
+        <div className="absolute inset-0 z-50 bg-primary/10 border-2 border-dashed border-primary backdrop-blur-xs flex flex-col items-center justify-center gap-3 p-6 text-center pointer-events-none">
+          <div className="size-14 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg">
+            <UploadCloud className="size-8" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm sm:text-base font-semibold text-foreground">
+              Drop documents or images to convert into tickets or workspace resources
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Supports screenshots (PNG, JPG), specifications & PRDs (PDF, DOCX), and task sheets (CSV, JSON)
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header Bar */}
       <div className="flex h-12 sm:h-14 shrink-0 items-center justify-between gap-1.5 sm:gap-3 border-b border-border bg-card/75 px-2.5 sm:px-4 backdrop-blur-md">
         <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-1">
@@ -570,6 +771,74 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
                     </div>
                   )}
 
+                  {/* Message Attachments */}
+                  {msg.attachments && msg.attachments.length > 0 && (
+                    <div className="mb-2.5 flex flex-wrap gap-2">
+                      {msg.attachments.map((att) => {
+                        const isImg =
+                          att.mime_type.startsWith('image/') ||
+                          /\.(png|jpe?g|gif|webp|svg)$/i.test(att.original_filename);
+                        const downloadUrl = getChatAttachmentDownloadUrl(
+                          selectedWorkspaceId,
+                          att.id,
+                        );
+                        if (isImg) {
+                          return (
+                            <div
+                              key={att.id}
+                              className="group/img relative rounded-lg overflow-hidden border border-border/50 max-w-[200px] cursor-pointer bg-muted/40 hover:border-primary/50 transition-colors"
+                              onClick={() =>
+                                setPreviewImage({
+                                  url: downloadUrl,
+                                  filename: att.original_filename,
+                                })
+                              }
+                              title={`View ${att.original_filename}`}
+                            >
+                              <img
+                                src={downloadUrl}
+                                alt={att.original_filename}
+                                className="max-h-36 w-auto object-cover rounded-md"
+                                loading="lazy"
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity text-white text-xs gap-1 font-medium">
+                                <Eye className="size-3.5" />
+                                <span>Preview</span>
+                              </div>
+                              <div className="p-1 text-[11px] truncate text-center bg-background/80 backdrop-blur-xs">
+                                {att.original_filename}
+                              </div>
+                            </div>
+                          );
+                        }
+                        return (
+                          <a
+                            key={att.id}
+                            href={downloadUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            download={att.original_filename}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs transition-colors ${
+                              isUser
+                                ? 'bg-primary-foreground/15 border-primary-foreground/25 hover:bg-primary-foreground/25 text-primary-foreground'
+                                : 'bg-muted/50 border-border/80 hover:bg-muted text-foreground'
+                            }`}
+                            title={`Download ${att.original_filename}`}
+                          >
+                            {getFileIcon(att.mime_type, att.original_filename)}
+                            <span className="font-medium max-w-[140px] truncate">
+                              {att.original_filename}
+                            </span>
+                            <span className="text-[10px] opacity-70">
+                              ({formatFileSize(att.file_size_bytes)})
+                            </span>
+                            <Download className="size-3 opacity-60 ml-0.5" />
+                          </a>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   {/* Message text */}
                   {msg.content && (
                     isUser ? (
@@ -726,6 +995,52 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
 
       {/* Input Composer */}
       <div className="border-t border-border bg-card p-2.5 sm:p-4 shrink-0">
+        {/* Staging preview tray */}
+        {stagedAttachments.length > 0 && (
+          <div className="mb-2.5 flex flex-wrap gap-2 p-2 bg-muted/40 border border-border/80 rounded-xl max-h-32 overflow-y-auto">
+            {stagedAttachments.map((item, idx) => (
+              <div
+                key={idx}
+                className="flex items-center gap-2 px-2.5 py-1.5 bg-background rounded-lg border border-border/80 text-xs shadow-2xs relative group"
+              >
+                {item.previewUrl ? (
+                  <img
+                    src={item.previewUrl}
+                    alt={item.file.name}
+                    className="size-7 rounded object-cover border border-border/60"
+                  />
+                ) : (
+                  getFileIcon(item.file.type, item.file.name)
+                )}
+                <div className="flex flex-col min-w-0 max-w-[120px]">
+                  <span className="truncate font-medium text-[11px] text-foreground">
+                    {item.file.name}
+                  </span>
+                  <span className="text-[9px] text-muted-foreground">
+                    {formatFileSize(item.file.size)}
+                  </span>
+                </div>
+                {item.uploading && (
+                  <Loader2 className="size-3.5 animate-spin text-primary shrink-0 ml-1" />
+                )}
+                {item.error && (
+                  <span className="text-destructive text-[10px] shrink-0 font-medium ml-1">
+                    Failed
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveStaged(idx)}
+                  className="size-4 rounded-full bg-muted hover:bg-destructive hover:text-destructive-foreground flex items-center justify-center shrink-0 ml-1 transition-colors cursor-pointer"
+                  title="Remove attachment"
+                >
+                  <X className="size-2.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -733,6 +1048,35 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
           }}
           className="flex items-end gap-2 sm:gap-2.5"
         >
+          {/* Hidden File Input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*,.pdf,.docx,.txt,.csv,.json"
+            onChange={(e) => {
+              if (e.target.files && e.target.files.length > 0) {
+                handleFilesSelected(Array.from(e.target.files));
+                e.target.value = '';
+              }
+            }}
+            className="hidden"
+            id="chat-file-input"
+          />
+
+          {/* Paperclip Attachment Button */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            disabled={loading || !selectedWorkspaceId}
+            onClick={() => fileInputRef.current?.click()}
+            className="size-10 sm:size-11 rounded-xl shrink-0 text-muted-foreground hover:text-foreground cursor-pointer"
+            title="Attach image or document (PRD, CSV backlog, screenshot)"
+          >
+            <Paperclip className="size-4" />
+          </Button>
+
           <div className="relative flex-1">
             <textarea
               ref={textareaRef}
@@ -740,9 +1084,10 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               placeholder={
                 selectedWorkspaceId
-                  ? 'Ask PMT Assistant anything...'
+                  ? 'Ask PMT Assistant, paste screenshot, or drop PRD / CSV...'
                   : 'Select a workspace first...'
               }
               disabled={loading || !selectedWorkspaceId}
@@ -753,7 +1098,12 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
           <Button
             type="submit"
             size="icon"
-            disabled={!inputMessage.trim() || loading || !selectedWorkspaceId}
+            disabled={
+              (!inputMessage.trim() && stagedAttachments.length === 0) ||
+              loading ||
+              !selectedWorkspaceId ||
+              stagedAttachments.some((a) => a.uploading)
+            }
             className="size-10 sm:size-11 rounded-xl shrink-0 shadow-xs"
             title="Send message"
           >
@@ -761,6 +1111,48 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
           </Button>
         </form>
       </div>
+
+      {/* Image Full-Size Preview Modal */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] flex flex-col items-center bg-card rounded-2xl border border-border/80 shadow-2xl p-3 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between w-full px-2 pb-2 border-b border-border/60">
+              <span className="text-xs font-medium truncate max-w-md">{previewImage.filename}</span>
+              <div className="flex items-center gap-1.5">
+                <a
+                  href={previewImage.url}
+                  download={previewImage.filename}
+                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
+                  title="Download image"
+                >
+                  <Download className="size-4" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewImage(null)}
+                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
+                  title="Close preview"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            </div>
+            <div className="mt-2 flex items-center justify-center overflow-auto max-h-[calc(90vh-60px)]">
+              <img
+                src={previewImage.url}
+                alt={previewImage.filename}
+                className="max-h-full max-w-full object-contain rounded-lg shadow-sm"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       <AIChatSettingsModal
         open={settingsOpen}
