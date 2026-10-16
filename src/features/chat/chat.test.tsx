@@ -345,6 +345,481 @@ describe('Chat Components', () => {
       expect(downloadLink).toBeInTheDocument();
       expect(downloadLink).toHaveAttribute('href', expect.stringContaining('/chat/attachments/att-doc-1'));
     });
+
+    it('handles drag-and-drop overlay and stages dropped files', async () => {
+      const chatApi = await import('@/api/chat');
+      const workspacesApi = await import('@/api/workspaces');
+
+      vi.spyOn(workspacesApi, 'fetchWorkspacesApi').mockResolvedValue([
+        { id: 'ws-101', name: 'Mobile App', slug: 'mobile-app', is_admin: true } as any,
+      ]);
+      vi.spyOn(chatApi, 'fetchChatSettings').mockResolvedValue({
+        provider: 'google',
+        model: 'gemini-1.5-pro',
+        has_api_key: true,
+      });
+      vi.spyOn(chatApi, 'uploadChatAttachmentApi').mockResolvedValue({
+        id: 'att-dnd-1',
+        original_filename: 'dropped_spec.pdf',
+        mime_type: 'application/pdf',
+        file_size_bytes: 84000,
+        created_at: new Date().toISOString(),
+      });
+
+      const { AIChatView } = await import('./components/AIChatView');
+      const { fireEvent } = await import('@testing-library/react');
+      const { container } = renderWithProviders(<AIChatView initialWorkspaceId="ws-101" />);
+
+      const dropZone = container.firstChild as HTMLElement;
+
+      // Drag enter
+      fireEvent.dragEnter(dropZone, {
+        dataTransfer: {
+          items: [{ kind: 'file' }],
+        },
+      });
+
+      expect(
+        await screen.findByText('Drop documents or images to convert into tickets or workspace resources')
+      ).toBeInTheDocument();
+
+      // Drag leave
+      fireEvent.dragLeave(dropZone);
+      expect(
+        screen.queryByText('Drop documents or images to convert into tickets or workspace resources')
+      ).not.toBeInTheDocument();
+
+      // Drop file
+      const fakeFile = new File(['pdf-content'], 'dropped_spec.pdf', { type: 'application/pdf' });
+      fireEvent.drop(dropZone, {
+        dataTransfer: {
+          files: [fakeFile],
+        },
+      });
+
+      expect(chatApi.uploadChatAttachmentApi).toHaveBeenCalledWith(
+        'ws-101',
+        expect.any(File),
+        undefined
+      );
+      expect(await screen.findByText('dropped_spec.pdf')).toBeInTheDocument();
+    });
+
+    it('handles clipboard screenshot paste in composer textarea', async () => {
+      const chatApi = await import('@/api/chat');
+      const workspacesApi = await import('@/api/workspaces');
+
+      vi.spyOn(workspacesApi, 'fetchWorkspacesApi').mockResolvedValue([
+        { id: 'ws-101', name: 'Mobile App', slug: 'mobile-app', is_admin: true } as any,
+      ]);
+      vi.spyOn(chatApi, 'fetchChatSettings').mockResolvedValue({
+        provider: 'google',
+        model: 'gemini-1.5-pro',
+        has_api_key: true,
+      });
+      vi.spyOn(chatApi, 'uploadChatAttachmentApi').mockResolvedValue({
+        id: 'att-paste-1',
+        original_filename: 'pasted_screenshot.png',
+        mime_type: 'image/png',
+        file_size_bytes: 52000,
+        created_at: new Date().toISOString(),
+      });
+
+      const { AIChatView } = await import('./components/AIChatView');
+      const { fireEvent } = await import('@testing-library/react');
+      renderWithProviders(<AIChatView initialWorkspaceId="ws-101" />);
+
+      const textarea = await screen.findByPlaceholderText(
+        'Ask PMT Assistant, paste screenshot, or drop PRD / CSV...'
+      );
+
+      const fakeImageFile = new File(['png-data'], 'pasted_screenshot.png', { type: 'image/png' });
+      fireEvent.paste(textarea, {
+        clipboardData: {
+          items: [
+            {
+              kind: 'file',
+              getAsFile: () => fakeImageFile,
+            },
+          ],
+        },
+      });
+
+      expect(chatApi.uploadChatAttachmentApi).toHaveBeenCalledWith(
+        'ws-101',
+        expect.any(File),
+        undefined
+      );
+      expect(await screen.findByText('pasted_screenshot.png')).toBeInTheDocument();
+    });
+
+    it('opens full-size image lightbox modal on thumbnail click and closes on close button', async () => {
+      const chatApi = await import('@/api/chat');
+      const workspacesApi = await import('@/api/workspaces');
+
+      vi.spyOn(workspacesApi, 'fetchWorkspacesApi').mockResolvedValue([
+        { id: 'ws-101', name: 'Mobile App', slug: 'mobile-app', is_admin: true } as any,
+      ]);
+      vi.spyOn(chatApi, 'fetchChatSettings').mockResolvedValue({
+        provider: 'google',
+        model: 'gemini-1.5-pro',
+        has_api_key: true,
+      });
+      vi.spyOn(chatApi, 'fetchConversationHistory').mockResolvedValue({
+        conversation: { id: 'conv-img', title: 'Image Preview', created_at: '', updated_at: '' },
+        messages: [
+          {
+            role: 'user',
+            content: 'Look at this error image',
+            attachments: [
+              {
+                id: 'att-img-99',
+                original_filename: 'error_dialog.png',
+                mime_type: 'image/png',
+                file_size_bytes: 40000,
+                created_at: new Date().toISOString(),
+              },
+            ],
+          },
+        ],
+      });
+
+      const { AIChatView } = await import('./components/AIChatView');
+      const user = userEvent.setup();
+      renderWithProviders(<AIChatView initialWorkspaceId="ws-101" initialConversationId="conv-img" />);
+
+      const thumbnail = await screen.findByTitle('View error_dialog.png');
+      expect(thumbnail).toBeInTheDocument();
+
+      // Click to open lightbox modal
+      await user.click(thumbnail);
+
+      // Lightbox header should show filename
+      expect(await screen.findByTitle('Close preview')).toBeInTheDocument();
+      expect(screen.getByTitle('Download image')).toBeInTheDocument();
+
+      // Close modal
+      const closeBtn = screen.getByTitle('Close preview');
+      await user.click(closeBtn);
+
+      expect(screen.queryByTitle('Close preview')).not.toBeInTheDocument();
+    });
+
+    it('allows removing a staged attachment from the tray', async () => {
+      const chatApi = await import('@/api/chat');
+      const workspacesApi = await import('@/api/workspaces');
+
+      vi.spyOn(workspacesApi, 'fetchWorkspacesApi').mockResolvedValue([
+        { id: 'ws-101', name: 'Mobile App', slug: 'mobile-app', is_admin: true } as any,
+      ]);
+      vi.spyOn(chatApi, 'fetchChatSettings').mockResolvedValue({
+        provider: 'google',
+        model: 'gemini-1.5-pro',
+        has_api_key: true,
+      });
+      vi.spyOn(chatApi, 'uploadChatAttachmentApi').mockResolvedValue({
+        id: 'att-remove-1',
+        original_filename: 'file_to_remove.txt',
+        mime_type: 'text/plain',
+        file_size_bytes: 1200,
+        created_at: new Date().toISOString(),
+      });
+
+      const { AIChatView } = await import('./components/AIChatView');
+      const user = userEvent.setup();
+      renderWithProviders(<AIChatView initialWorkspaceId="ws-101" />);
+
+      const fileInput = document.getElementById('chat-file-input') as HTMLInputElement;
+      const fakeFile = new File(['text'], 'file_to_remove.txt', { type: 'text/plain' });
+      await user.upload(fileInput, fakeFile);
+
+      expect(await screen.findByText('file_to_remove.txt')).toBeInTheDocument();
+
+      // Click remove button
+      const removeBtn = screen.getByTitle('Remove attachment');
+      await user.click(removeBtn);
+
+      expect(screen.queryByText('file_to_remove.txt')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('<AIChatView> Interactions, Composer, and Error States', () => {
+    it('disables send button when textarea is empty and enables on text input', async () => {
+      const chatApi = await import('@/api/chat');
+      const workspacesApi = await import('@/api/workspaces');
+
+      vi.spyOn(workspacesApi, 'fetchWorkspacesApi').mockResolvedValue([
+        { id: 'ws-101', name: 'Mobile App', slug: 'mobile-app', is_admin: true } as any,
+      ]);
+      vi.spyOn(chatApi, 'fetchChatSettings').mockResolvedValue({
+        provider: 'google',
+        model: 'gemini-1.5-pro',
+        has_api_key: true,
+      });
+      vi.spyOn(chatApi, 'sendChatTurn').mockResolvedValue({
+        conversation_id: 'conv-new',
+        reply: 'Ticket created successfully.',
+        tool_calls_executed: [],
+      });
+      vi.spyOn(chatApi, 'fetchConversationHistory').mockResolvedValue({
+        conversation: { id: 'conv-new', title: 'New Conv', created_at: '', updated_at: '' },
+        messages: [],
+      });
+
+      const { AIChatView } = await import('./components/AIChatView');
+      const user = userEvent.setup();
+      renderWithProviders(<AIChatView initialWorkspaceId="ws-101" />);
+
+      const sendBtn = screen.getByTitle('Send message');
+      expect(sendBtn).toBeDisabled();
+
+      const textarea = await screen.findByPlaceholderText(
+        'Ask PMT Assistant, paste screenshot, or drop PRD / CSV...'
+      );
+      await user.type(textarea, 'Create ticket for user registration');
+      expect(sendBtn).not.toBeDisabled();
+
+      await user.click(sendBtn);
+      expect(chatApi.sendChatTurn).toHaveBeenCalledWith(
+        'ws-101',
+        expect.objectContaining({
+          message: 'Create ticket for user registration',
+        })
+      );
+    });
+
+    it('renders starter prompt suggestions and clicking one submits prompt', async () => {
+      const chatApi = await import('@/api/chat');
+      const workspacesApi = await import('@/api/workspaces');
+
+      vi.spyOn(workspacesApi, 'fetchWorkspacesApi').mockResolvedValue([
+        { id: 'ws-101', name: 'Mobile App', slug: 'mobile-app', is_admin: true } as any,
+      ]);
+      vi.spyOn(chatApi, 'fetchChatSettings').mockResolvedValue({
+        provider: 'google',
+        model: 'gemini-1.5-pro',
+        has_api_key: true,
+      });
+      vi.spyOn(chatApi, 'sendChatTurn').mockResolvedValue({
+        conversation_id: 'conv-starter',
+        reply: 'Here are the open high priority bugs.',
+        tool_calls_executed: [],
+      });
+      vi.spyOn(chatApi, 'fetchConversationHistory').mockResolvedValue({
+        conversation: { id: 'conv-starter', title: 'Starter Conv', created_at: '', updated_at: '' },
+        messages: [],
+      });
+
+      const { AIChatView } = await import('./components/AIChatView');
+      const user = userEvent.setup();
+      renderWithProviders(<AIChatView initialWorkspaceId="ws-101" />);
+
+      const starterPrompt = await screen.findByText('What are the open high priority bugs in this workspace?');
+      expect(starterPrompt).toBeInTheDocument();
+
+      await user.click(starterPrompt);
+      expect(chatApi.sendChatTurn).toHaveBeenCalledWith(
+        'ws-101',
+        expect.objectContaining({
+          message: 'What are the open high priority bugs in this workspace?',
+        })
+      );
+    });
+
+    it('displays missing API key banner and opens settings modal on configure click', async () => {
+      const chatApi = await import('@/api/chat');
+      const workspacesApi = await import('@/api/workspaces');
+
+      vi.spyOn(workspacesApi, 'fetchWorkspacesApi').mockResolvedValue([
+        { id: 'ws-101', name: 'Mobile App', slug: 'mobile-app', is_admin: true } as any,
+      ]);
+      vi.spyOn(chatApi, 'fetchChatSettings').mockResolvedValue({
+        provider: 'google',
+        model: 'gemini-1.5-pro',
+        has_api_key: false,
+      });
+      vi.spyOn(chatApi, 'fetchAvailableModels').mockResolvedValue({
+        provider: 'google',
+        models: [],
+        default_model: 'gemini-1.5-pro',
+      });
+
+      const { AIChatView } = await import('./components/AIChatView');
+      const user = userEvent.setup();
+      renderWithProviders(<AIChatView initialWorkspaceId="ws-101" />);
+
+      expect(
+        await screen.findByText(/AI model credentials are not configured yet/i)
+      ).toBeInTheDocument();
+
+      const configBtn = screen.getByRole('button', { name: /^Configure$/i });
+      await user.click(configBtn);
+
+      expect(await screen.findByText('AI Chat Model & Credentials')).toBeInTheDocument();
+    });
+
+    it('displays error message bubble when sendChatTurn fails', async () => {
+      const chatApi = await import('@/api/chat');
+      const workspacesApi = await import('@/api/workspaces');
+
+      vi.spyOn(workspacesApi, 'fetchWorkspacesApi').mockResolvedValue([
+        { id: 'ws-101', name: 'Mobile App', slug: 'mobile-app', is_admin: true } as any,
+      ]);
+      vi.spyOn(chatApi, 'fetchChatSettings').mockResolvedValue({
+        provider: 'google',
+        model: 'gemini-1.5-pro',
+        has_api_key: true,
+      });
+      vi.spyOn(chatApi, 'sendChatTurn').mockRejectedValue(
+        new Error('Network timeout contacting LLM gateway')
+      );
+
+      const { AIChatView } = await import('./components/AIChatView');
+      const user = userEvent.setup();
+      renderWithProviders(<AIChatView initialWorkspaceId="ws-101" />);
+
+      const textarea = await screen.findByPlaceholderText(
+        'Ask PMT Assistant, paste screenshot, or drop PRD / CSV...'
+      );
+      await user.type(textarea, 'Test failure query');
+
+      const sendBtn = screen.getByTitle('Send message');
+      await user.click(sendBtn);
+
+      expect(
+        await screen.findByText(/⚠️ Error: Network timeout contacting LLM gateway/i)
+      ).toBeInTheDocument();
+    });
+
+    it('supports copying message to clipboard and reusing prompt in composer', async () => {
+      const chatApi = await import('@/api/chat');
+      const workspacesApi = await import('@/api/workspaces');
+
+      const writeTextMock = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(window.navigator, 'clipboard', {
+        value: {
+          writeText: writeTextMock,
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      vi.spyOn(workspacesApi, 'fetchWorkspacesApi').mockResolvedValue([
+        { id: 'ws-101', name: 'Mobile App', slug: 'mobile-app', is_admin: true } as any,
+      ]);
+      vi.spyOn(chatApi, 'fetchChatSettings').mockResolvedValue({
+        provider: 'google',
+        model: 'gemini-1.5-pro',
+        has_api_key: true,
+      });
+      vi.spyOn(chatApi, 'fetchConversationHistory').mockResolvedValue({
+        conversation: { id: 'conv-copy', title: 'Copy Test', created_at: '', updated_at: '' },
+        messages: [
+          {
+            role: 'user',
+            content: 'How many story points are closed in Sprint 4?',
+            created_at: new Date().toISOString(),
+          },
+        ],
+      });
+
+      const { AIChatView } = await import('./components/AIChatView');
+      const { fireEvent } = await import('@testing-library/react');
+      renderWithProviders(<AIChatView initialWorkspaceId="ws-101" initialConversationId="conv-copy" />);
+
+      expect(await screen.findByText('How many story points are closed in Sprint 4?')).toBeInTheDocument();
+
+      const copyBtn = screen.getByTitle('Copy prompt');
+      fireEvent.click(copyBtn);
+      expect(writeTextMock).toHaveBeenCalledWith(
+        'How many story points are closed in Sprint 4?'
+      );
+
+      const reuseBtn = screen.getByTitle('Edit / reuse prompt in composer');
+      fireEvent.click(reuseBtn);
+
+      const textarea = screen.getByPlaceholderText(
+        'Ask PMT Assistant, paste screenshot, or drop PRD / CSV...'
+      ) as HTMLTextAreaElement;
+      expect(textarea.value).toBe('How many story points are closed in Sprint 4?');
+    });
+
+    it('retries the last user turn when retry button is clicked', async () => {
+      const chatApi = await import('@/api/chat');
+      const workspacesApi = await import('@/api/workspaces');
+
+      vi.spyOn(workspacesApi, 'fetchWorkspacesApi').mockResolvedValue([
+        { id: 'ws-101', name: 'Mobile App', slug: 'mobile-app', is_admin: true } as any,
+      ]);
+      vi.spyOn(chatApi, 'fetchChatSettings').mockResolvedValue({
+        provider: 'google',
+        model: 'gemini-1.5-pro',
+        has_api_key: true,
+      });
+      vi.spyOn(chatApi, 'fetchConversationHistory').mockResolvedValue({
+        conversation: { id: 'conv-retry', title: 'Retry Test', created_at: '', updated_at: '' },
+        messages: [
+          {
+            role: 'user',
+            content: 'Fetch sprint velocity',
+            created_at: new Date().toISOString(),
+          },
+          {
+            role: 'assistant',
+            content: 'Sprint velocity is 42 points.',
+            created_at: new Date().toISOString(),
+          },
+        ],
+      });
+      vi.spyOn(chatApi, 'sendChatTurn').mockResolvedValue({
+        conversation_id: 'conv-retry',
+        reply: 'Updated sprint velocity is 44 points.',
+        tool_calls_executed: [],
+      });
+
+      const { AIChatView } = await import('./components/AIChatView');
+      const user = userEvent.setup();
+      renderWithProviders(<AIChatView initialWorkspaceId="ws-101" initialConversationId="conv-retry" />);
+
+      const retryBtn = await screen.findByTitle('Retry / Regenerate response');
+      await user.click(retryBtn);
+
+      expect(chatApi.sendChatTurn).toHaveBeenCalledWith(
+        'ws-101',
+        expect.objectContaining({
+          message: 'Fetch sprint velocity',
+        })
+      );
+    });
+  });
+
+  describe('<AIChatDrawer>', () => {
+    it('renders floating action button and opens dialog on click', async () => {
+      const chatApi = await import('@/api/chat');
+      const workspacesApi = await import('@/api/workspaces');
+
+      vi.spyOn(workspacesApi, 'fetchWorkspacesApi').mockResolvedValue([
+        { id: 'ws-101', name: 'Mobile App', slug: 'mobile-app', is_admin: true } as any,
+      ]);
+      vi.spyOn(chatApi, 'fetchChatSettings').mockResolvedValue({
+        provider: 'google',
+        model: 'gemini-1.5-pro',
+        has_api_key: true,
+      });
+
+      const { AIChatDrawer } = await import('./components/AIChatDrawer');
+      const user = userEvent.setup();
+      renderWithProviders(<AIChatDrawer />);
+
+      const fab = screen.getByTitle('Open AI Chat Assistant');
+      expect(fab).toBeInTheDocument();
+
+      await user.click(fab);
+
+      expect(await screen.findByRole('dialog')).toBeInTheDocument();
+      expect(screen.getAllByText('PMT AI Assistant').length).toBeGreaterThan(0);
+    });
   });
 });
+
 
